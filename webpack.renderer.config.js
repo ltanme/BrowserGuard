@@ -20,4 +20,13 @@ module.exports = {
     ],
   },
   target: 'electron-renderer',
+  devServer: {
+    static: {
+      directory: path.join(__dirname, 'src/renderer'),
+    },
+    port: 8080,
+    open: true,
+    hot: true,
+    historyApiFallback: true,
+  },
 }; 
