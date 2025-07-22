@@ -1,0 +1,72 @@
+{
+  "name": "browserguard-m4",
+  "version": "1.0.0",
+  "description": "跨平台守护型桌面 App (macOS/Windows) Electron + TypeScript + React",
+  "main": "dist/main.js",
+  "author": "",
+  "license": "MIT",
+  "scripts": {
+    "dev": "concurrently \"npm:dev:main\" \"npm:dev:renderer\"",
+    "dev:main": "tsc -w --project tsconfig.main.json & electron .",
+    "dev:renderer": "webpack serve --config webpack.renderer.config.js",
+    "build:main": "tsc --project tsconfig.main.json",
+    "build:renderer": "webpack --config webpack.renderer.config.js",
+    "build": "npm run build:main && npm run build:renderer",
+    "build:mac": "npm run build && electron-builder --mac --arm64",
+    "build:win": "npm run build && electron-builder --win --ia32"
+  },
+  "dependencies": {
+    "@types/react-i18next": "^7.8.3",
+    "auto-launch": "^5.0.5",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-i18next": "^15.6.0",
+    "node-fetch": "^3.3.2",
+    "i18next": "^23.0.1",
+    "electron-log": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "@types/react": "^18.2.21",
+    "@types/react-dom": "^18.2.7",
+    "concurrently": "^8.2.2",
+    "electron-builder": "24.13.3",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.4.5",
+    "webpack": "^5.91.0",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^4.15.1",
+    "electron": "^28.2.3"
+  },
+  "build": {
+    "appId": "com.example.BrowserGuard",
+    "productName": "BrowserGuard",
+    "asar": true,
+    "files": [
+      "dist/main.js",
+      "dist/renderer.js",
+      "dist/shared/**",
+      "dist/getUrlMac.js",
+      "dist/getUrlWin.js",
+      "dist/killProcess.js",
+      "dist/tray.js",
+      "assets/**",
+      "node_modules/**",
+      "package.json"
+    ],
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.utilities",
+      "hardenedRuntime": true,
+      "entitlements": "build/entitlements.mac.plist"
+    },
+    "win": {
+      "target": {
+        "target": "nsis",
+        "arch": [
+          "ia32"
+        ]
+      }
+    }
+  }
+}
