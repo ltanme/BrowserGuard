@@ -253,6 +253,7 @@ function createWindow() {
 }
 
 app.on('ready', async () => {
+  writeLog('App started (from packaged app)');
   checkAccessibility();
   createWindow();
   tray = setupTray(app, mainWindow, ADMIN_PASSWORD, writeLog);

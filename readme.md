@@ -30,6 +30,7 @@
 ## 打包产物
 
 - macOS: `dist/BrowserGuard-1.0.0-arm64.dmg`
+- npm run build:mac
 - Windows: `dist/BrowserGuard Setup 1.0.0-ia32.exe`
 
 ## CI 自动化

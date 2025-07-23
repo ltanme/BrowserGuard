@@ -45,9 +45,16 @@
     "appId": "com.example.BrowserGuard",
     "productName": "BrowserGuard",
     "asar": true,
+    "extraResources": [
+      {
+        "from": "build/icon.png",
+        "to": "build/icon.png"
+      }
+    ],
     "files": [
-      "dist/main.js",
+      "dist/main/**",
       "dist/renderer.js",
+      "dist/renderer/index.html",
       "dist/shared/**",
       "dist/getUrlMac.js",
       "dist/getUrlWin.js",
@@ -55,7 +62,8 @@
       "dist/tray.js",
       "assets/**",
       "node_modules/**",
-      "package.json"
+      "package.json",
+      "build/**"
     ],
     "mac": {
       "target": "dmg",

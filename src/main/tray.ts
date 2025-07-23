@@ -2,7 +2,10 @@ import { Tray, Menu, BrowserWindow, App } from 'electron';
 import path from 'path';
 
 export function setupTray(app: App, mainWindow: BrowserWindow | null, ADMIN_PASSWORD: string, writeLog: (msg: string) => void): Tray {
-  const tray = new Tray(path.join(__dirname, '../../build/icon.png'));
+  const iconPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'build', 'icon.png')
+    : path.join(__dirname, '../../build/icon.png');
+  const tray = new Tray(iconPath);
   const contextMenu = Menu.buildFromTemplate([
     {
       label: '管理员退出',
