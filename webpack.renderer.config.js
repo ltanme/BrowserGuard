@@ -1,4 +1,6 @@
 const path = require('path');
+const webpack = require('webpack');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 module.exports = {
   mode: 'production',
@@ -29,4 +31,17 @@ module.exports = {
     hot: true,
     historyApiFallback: true,
   },
+  plugins: [
+    new webpack.DefinePlugin({
+      global: 'window'
+    }),
+    new CopyWebpackPlugin({
+      patterns: [
+        {
+          from: path.resolve(__dirname, 'src/renderer/index.html'),
+          to: path.resolve(__dirname, 'dist/renderer/index.html')
+        }
+      ]
+    })
+  ],
 }; 

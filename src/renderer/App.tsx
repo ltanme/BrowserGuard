@@ -27,6 +27,27 @@ declare global {
   }
 }
 
+// 默认 blocklist 数据
+const defaultBlocklist = {
+  periods: [
+    {
+      start: '08:00',
+      end: '12:00',
+      domains: ['facebook.com', 'youtube.com']
+    },
+    {
+      start: '13:30',
+      end: '15:30',
+      domains: ['tiktok.com']
+    },
+    {
+      start: '20:00',
+      end: '23:00',
+      domains: ['baidu.com', 'instagram.com']
+    }
+  ]
+};
+
 const App: React.FC = () => {
   const { t } = useTranslation();
   const [show, setShow] = useState(false);
@@ -52,10 +73,28 @@ const App: React.FC = () => {
     });
     // 调试模式下拉取 blocklist
     if (isDebug) {
+      let timeout = false;
+      const timer = setTimeout(() => {
+        timeout = true;
+        setBlocklist(defaultBlocklist);
+        setBlocklistError('请求超时，已使用默认数据');
+      }, 2000); // 2秒超时
       fetch('https://api.example.com/blocklist')
-        .then(res => res.json())
-        .then(data => setBlocklist(data))
-        .catch(e => setBlocklistError(e.message || String(e)));
+        .then(res => {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.json();
+        })
+        .then(data => {
+          clearTimeout(timer);
+          setBlocklist(data);
+        })
+        .catch(e => {
+          if (!timeout) {
+            clearTimeout(timer);
+            setBlocklist(defaultBlocklist);
+            setBlocklistError((e.message || String(e)) + '，已使用默认数据');
+          }
+        });
     }
   }, []);
 

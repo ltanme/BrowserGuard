@@ -1,4 +1,12 @@
 import { exec } from 'child_process';
+import fs from 'fs';
+
+function logGetUrl(msg: string) {
+  fs.appendFileSync(
+    require('os').homedir() + '/Library/Logs/BrowserGuard/renderer.log',
+    `[getUrlMac] [${new Date().toISOString()}] ${msg}\n`
+  );
+}
 
 export async function getCurrentUrl(browser: 'chrome' | 'edge' | 'safari'): Promise<string | null> {
   let script = '';
@@ -13,12 +21,18 @@ export async function getCurrentUrl(browser: 'chrome' | 'edge' | 'safari'): Prom
       script = 'tell application "Safari" to return URL of front document';
       break;
     default:
+      logGetUrl(`[${browser}] 不支持的浏览器类型`);
       return null;
   }
+  logGetUrl(`[${browser}] 执行 AppleScript: ${script}`);
   return new Promise((resolve) => {
     exec(`osascript -e '${script}'`, (err, stdout) => {
-      if (err) return resolve(null);
+      if (err) {
+        logGetUrl(`[${browser}] 执行失败: ${err.message}`);
+        return resolve(null);
+      }
       const url = stdout.trim();
+      logGetUrl(`[${browser}] 获取到URL: ${url}`);
       resolve(url && url.startsWith('http') ? url : null);
     });
   });
