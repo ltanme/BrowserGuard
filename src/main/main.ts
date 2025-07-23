@@ -17,9 +17,9 @@ const LOG_PATH = process.platform === 'darwin'
 const defaultBlocklist: BlockListResponse = {
   periods: [
     {
-      start: '13:30',
-      end: '15:30',
-      domains: ['tiktok.com']
+      start: '00:00',
+      end: '23:59',
+      domains: ['baidu.com']
     }
     // 可根据需要添加更多规则
   ]
@@ -283,6 +283,10 @@ app.on('window-all-closed', (e: Electron.Event) => {
   e.preventDefault(); // 禁止关闭
 });
 
+ipcMain.handle('check-admin-pwd', async (_e, pwd) => {
+  return pwd === ADMIN_PASSWORD;
+});
+
 ipcMain.handle('admin-exit', async (_e, pwd) => {
   if (pwd === ADMIN_PASSWORD) {
     writeLog('Admin exit success');
@@ -293,3 +297,5 @@ ipcMain.handle('admin-exit', async (_e, pwd) => {
     return false;
   }
 }); 
+
+ipcMain.handle('get-blocklist', async () => blocklist); 

@@ -6,28 +6,7 @@ import '../shared/i18n';
 const isDebug = typeof window !== 'undefined' && window.location && window.location.search.includes('debug=1');
 
 // mock electronAPI for debug
-if (isDebug && !window.electronAPI) {
-  window.electronAPI = {
-    onShowWarning: (cb) => {},
-    onShowAdminExit: (cb) => {},
-    adminExit: async (pwd) => pwd === 'Admin1234',
-    getBlocklist: async () => defaultBlocklist,
-  };
-}
-
-declare global {
-  interface Window {
-    electronAPI?: {
-      onShowWarning: (cb: (url: string) => void) => void;
-      onShowAdminExit: (cb: () => void) => void;
-      adminExit: (pwd: string) => Promise<boolean>;
-      getBlocklist?: () => Promise<any>;
-    };
-  }
-}
-
-// 默认 blocklist 数据
-const defaultBlocklist = {
+const debugDefaultBlocklist = {
   periods: [
     {
       start: '08:00',
@@ -46,56 +25,113 @@ const defaultBlocklist = {
     }
   ]
 };
+if (isDebug && !window.electronAPI) {
+  window.electronAPI = {
+    onShowWarning: (cb) => {},
+    onShowAdminExit: (cb) => {},
+    adminExit: async (pwd) => pwd === 'Admin1234',
+    getBlocklist: async () => debugDefaultBlocklist,
+  };
+}
+
+declare global {
+  interface Window {
+    electronAPI?: {
+      onShowWarning: (cb: (url: string) => void) => void;
+      onShowAdminExit: (cb: () => void) => void;
+      adminExit: (pwd: string) => Promise<boolean>;
+      getBlocklist?: () => Promise<any>;
+      checkAdminPwd?: (pwd: string) => Promise<boolean>;
+    };
+  }
+}
 
 const App: React.FC = () => {
   const { t } = useTranslation();
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [blocklistError, setBlocklistError] = useState<string | null>(null);
+  const [showAdmin, setShowAdmin] = useState(true); // 启动时先显示密码输入
+  const [adminPwd, setAdminPwd] = useState('');
+  const [adminMsg, setAdminMsg] = useState('');
+  const [pendingExit, setPendingExit] = useState(false); // 是否是退出流程
+  const [showWarning, setShowWarning] = useState(false);
+  const [warningUrl, setWarningUrl] = useState('');
 
-  // 调试模式下拉取 blocklist
+  // 退出时主进程发事件，前端再次显示密码输入框
   useEffect(() => {
-    if (isDebug) {
-      let timeout = false;
-      const timer = setTimeout(() => {
-        timeout = true;
-        setDashboardData(defaultBlocklist);
-        setBlocklistError('请求超时，已使用默认数据');
-      }, 2000); // 2秒超时
-      fetch('https://api.example.com/blocklist')
-        .then(res => {
-          if (!res.ok) throw new Error('HTTP ' + res.status);
-          return res.json();
-        })
-        .then(data => {
-          clearTimeout(timer);
-          setDashboardData(data);
-        })
-        .catch(e => {
-          if (!timeout) {
-            clearTimeout(timer);
-            setDashboardData(defaultBlocklist);
-            setBlocklistError((e.message || String(e)) + '，已使用默认数据');
-          }
-        });
-    } else {
-      setLoading(true);
-      (window.electronAPI?.getBlocklist?.() ?? Promise.resolve(defaultBlocklist))
-        .then(data => setDashboardData(data))
-        .finally(() => setLoading(false));
-    }
+    window.electronAPI?.onShowAdminExit(() => {
+      setShowAdmin(true);
+      setAdminPwd('');
+      setAdminMsg('');
+      setPendingExit(true); // 标记为退出流程
+    });
   }, []);
 
-  // 调试模式下显示 blocklist 拉取状态和错误
-  if (isDebug) {
+  // 密码校验通过后获取blocklist
+  useEffect(() => {
+    if (!showAdmin) {
+      setLoading(true);
+      (window.electronAPI?.getBlocklist?.() ?? Promise.reject())
+        .then(data => setDashboardData(data))
+        .catch(() => setDashboardData(null))
+        .finally(() => setLoading(false));
+    }
+  }, [showAdmin]);
+
+  // 弹窗优先显示
+  useEffect(() => {
+    window.electronAPI?.onShowWarning((url) => {
+      setWarningUrl(url);
+      setShowWarning(true);
+    });
+  }, []);
+
+  const handleAdminLogin = async () => {
+    if (pendingExit) {
+      // 退出流程，密码校验通过后退出
+      const ok = await window.electronAPI?.adminExit(adminPwd);
+      if (!ok) {
+        setAdminMsg('密码错误');
+        return;
+      }
+      // adminExit 会直接退出应用
+    } else {
+      // 启动流程，只校验密码
+      const ok = await window.electronAPI?.checkAdminPwd?.(adminPwd);
+      if (ok) {
+        setShowAdmin(false);
+        setPendingExit(false);
+      } else {
+        setAdminMsg('密码错误');
+      }
+    }
+  };
+
+  // 密码输入界面
+  if (showAdmin) {
     return (
       <div style={{ padding: 32, textAlign: 'center' }}>
-        <h2>调试模式 Debug Mode</h2>
-        <div style={{ margin: 16 }}>
-          <b>Blocklist 拉取结果：</b>
-          {dashboardData && <pre style={{ textAlign: 'left', background: '#eee', padding: 8 }}>{JSON.stringify(dashboardData, null, 2)}</pre>}
-          {blocklistError && <div style={{ color: 'red' }}>Blocklist 拉取失败: {blocklistError}</div>}
-        </div>
+        <h3>请输入管理员密码</h3>
+        <input
+          type="password"
+          value={adminPwd}
+          onChange={e => setAdminPwd(e.target.value)}
+          style={{ fontSize: 18, margin: 8 }}
+        />
+        <button onClick={handleAdminLogin} style={{ fontSize: 18, marginLeft: 8 }}>确认</button>
+        <div style={{ color: 'red', marginTop: 8 }}>{adminMsg}</div>
+      </div>
+    );
+  }
+
+  // 弹窗优先显示
+  if (showWarning) {
+    return (
+      <div style={{ padding: 32, textAlign: 'center' }}>
+        <h2>警告：你正在访问被拦截的网站</h2>
+        <div style={{ margin: 16 }}>{warningUrl}</div>
+        <button onClick={() => setShowWarning(false)} style={{ fontSize: 18 }}>确认</button>
       </div>
     );
   }
