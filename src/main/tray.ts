@@ -1,7 +1,7 @@
 import { Tray, Menu, BrowserWindow, App } from 'electron';
 import path from 'path';
 
-export function setupTray(app: App, mainWindow: BrowserWindow | null, ADMIN_PASSWORD: string, writeLog: (msg: string) => void): Tray {
+export function setupTray(app: App, mainWindow: BrowserWindow | null, ADMIN_PASSWORD: string, writeLog: (msg: string) => void, createWindow: () => void): Tray {
   const iconPath = app.isPackaged
     ? path.join(process.resourcesPath, 'build', 'icon.png')
     : path.join(__dirname, '../../build/icon.png');
@@ -19,5 +19,12 @@ export function setupTray(app: App, mainWindow: BrowserWindow | null, ADMIN_PASS
   ]);
   tray.setToolTip('BrowserGuard');
   tray.setContextMenu(contextMenu);
+  tray.on('click', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      createWindow();
+    } else {
+      mainWindow.show();
+    }
+  });
   return tray;
 } 

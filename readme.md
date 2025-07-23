@@ -49,3 +49,15 @@
 
 如需自定义图标，请替换 `build/icon.png`。
 
+rm -rf dist
+npm run build:main
+npm run build:renderer
+npm run dev
+npx electron dist/main/main.js
+npm run build:mac
+
+--
+每次修改主进程、preload 或前端代码后，建议依次执行：
+npm run build:main
+npm run build:renderer
+npx electron dist/main/main.js

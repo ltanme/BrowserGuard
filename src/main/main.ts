@@ -29,6 +29,7 @@ let blocklist: BlockListResponse = defaultBlocklist;
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let debugServer: DebugServer | null = null;
+let pendingQuit = false;
 
 function writeLog(msg: string) {
   fs.mkdirSync(path.dirname(LOG_PATH), { recursive: true });
@@ -240,9 +241,9 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
-    show: true, // 启动时自动显示窗口
-    frame: true, // 开发时有窗口边框
-    alwaysOnTop: false, // 开发时不置顶
+    show: true,
+    frame: true,
+    alwaysOnTop: false,
     webPreferences: {
       preload: path.join(__dirname, '../preload/preload.js'),
       nodeIntegration: false,
@@ -250,13 +251,19 @@ function createWindow() {
     }
   });
   mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+  mainWindow.on('close', (e) => {
+    if (mainWindow) {
+      e.preventDefault();
+      mainWindow.hide();
+    }
+  });
 }
 
 app.on('ready', async () => {
   writeLog('App started (from packaged app)');
   checkAccessibility();
   createWindow();
-  tray = setupTray(app, mainWindow, ADMIN_PASSWORD, writeLog);
+  tray = setupTray(app, mainWindow, ADMIN_PASSWORD, writeLog, createWindow);
   
   // Initialize debug server
   debugServer = new DebugServer({
@@ -283,6 +290,23 @@ app.on('window-all-closed', (e: Electron.Event) => {
   e.preventDefault(); // 禁止关闭
 });
 
+app.on('before-quit', (e) => {
+  if (!pendingQuit) {
+    e.preventDefault();
+    if (mainWindow) {
+      mainWindow.webContents.send('show-admin-exit');
+    }
+  }
+});
+
+app.on('activate', () => {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createWindow();
+  } else {
+    mainWindow.show();
+  }
+});
+
 ipcMain.handle('check-admin-pwd', async (_e, pwd) => {
   return pwd === ADMIN_PASSWORD;
 });
@@ -290,6 +314,7 @@ ipcMain.handle('check-admin-pwd', async (_e, pwd) => {
 ipcMain.handle('admin-exit', async (_e, pwd) => {
   if (pwd === ADMIN_PASSWORD) {
     writeLog('Admin exit success');
+    pendingQuit = true;
     app.exit(0);
     return true;
   } else {

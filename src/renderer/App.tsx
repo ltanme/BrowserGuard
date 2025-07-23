@@ -117,6 +117,7 @@ const App: React.FC = () => {
           type="password"
           value={adminPwd}
           onChange={e => setAdminPwd(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') handleAdminLogin(); }}
           style={{ fontSize: 18, margin: 8 }}
         />
         <button onClick={handleAdminLogin} style={{ fontSize: 18, marginLeft: 8 }}>确认</button>
