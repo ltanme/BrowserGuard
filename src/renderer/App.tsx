@@ -8,12 +8,10 @@ const isDebug = typeof window !== 'undefined' && window.location && window.locat
 // mock electronAPI for debug
 if (isDebug && !window.electronAPI) {
   window.electronAPI = {
-    onShowWarning: (cb: (url: string) => void) => {
-      // 模拟 2 秒后触发拦截
-      setTimeout(() => cb('https://facebook.com'), 2000);
-    },
-    onShowAdminExit: (cb: () => void) => {},
-    adminExit: async (pwd: string) => pwd === 'Admin1234',
+    onShowWarning: (cb) => {},
+    onShowAdminExit: (cb) => {},
+    adminExit: async (pwd) => pwd === 'Admin1234',
+    getBlocklist: async () => defaultBlocklist,
   };
 }
 
@@ -23,6 +21,7 @@ declare global {
       onShowWarning: (cb: (url: string) => void) => void;
       onShowAdminExit: (cb: () => void) => void;
       adminExit: (pwd: string) => Promise<boolean>;
+      getBlocklist?: () => Promise<any>;
     };
   }
 }
@@ -41,7 +40,7 @@ const defaultBlocklist = {
       domains: ['tiktok.com']
     },
     {
-      start: '20:00',
+      start: '19:00',
       end: '23:00',
       domains: ['baidu.com', 'instagram.com']
     }
@@ -50,33 +49,17 @@ const defaultBlocklist = {
 
 const App: React.FC = () => {
   const { t } = useTranslation();
-  const [show, setShow] = useState(false);
-  const [url, setUrl] = useState('');
-  const [count, setCount] = useState(5);
-  const [showAdmin, setShowAdmin] = useState(false);
-  const [adminPwd, setAdminPwd] = useState('');
-  const [adminMsg, setAdminMsg] = useState('');
-  // 调试用状态
-  const [blocklist, setBlocklist] = useState<any>(null);
+  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
   const [blocklistError, setBlocklistError] = useState<string | null>(null);
 
+  // 调试模式下拉取 blocklist
   useEffect(() => {
-    window.electronAPI?.onShowWarning((url) => {
-      setUrl(url);
-      setShow(true);
-      setCount(5);
-    });
-    window.electronAPI?.onShowAdminExit(() => {
-      setShowAdmin(true);
-      setAdminPwd('');
-      setAdminMsg('');
-    });
-    // 调试模式下拉取 blocklist
     if (isDebug) {
       let timeout = false;
       const timer = setTimeout(() => {
         timeout = true;
-        setBlocklist(defaultBlocklist);
+        setDashboardData(defaultBlocklist);
         setBlocklistError('请求超时，已使用默认数据');
       }, 2000); // 2秒超时
       fetch('https://api.example.com/blocklist')
@@ -86,33 +69,22 @@ const App: React.FC = () => {
         })
         .then(data => {
           clearTimeout(timer);
-          setBlocklist(data);
+          setDashboardData(data);
         })
         .catch(e => {
           if (!timeout) {
             clearTimeout(timer);
-            setBlocklist(defaultBlocklist);
+            setDashboardData(defaultBlocklist);
             setBlocklistError((e.message || String(e)) + '，已使用默认数据');
           }
         });
+    } else {
+      setLoading(true);
+      (window.electronAPI?.getBlocklist?.() ?? Promise.resolve(defaultBlocklist))
+        .then(data => setDashboardData(data))
+        .finally(() => setLoading(false));
     }
   }, []);
-
-  useEffect(() => {
-    if (show && count > 0) {
-      const timer = setTimeout(() => setCount(count - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [show, count]);
-
-  const handleAdminExit = async () => {
-    const ok = await window.electronAPI?.adminExit(adminPwd);
-    if (ok) {
-      setShowAdmin(false);
-    } else {
-      setAdminMsg(t('wrong_pwd'));
-    }
-  };
 
   // 调试模式下显示 blocklist 拉取状态和错误
   if (isDebug) {
@@ -121,50 +93,47 @@ const App: React.FC = () => {
         <h2>调试模式 Debug Mode</h2>
         <div style={{ margin: 16 }}>
           <b>Blocklist 拉取结果：</b>
-          {blocklist && <pre style={{ textAlign: 'left', background: '#eee', padding: 8 }}>{JSON.stringify(blocklist, null, 2)}</pre>}
+          {dashboardData && <pre style={{ textAlign: 'left', background: '#eee', padding: 8 }}>{JSON.stringify(dashboardData, null, 2)}</pre>}
           {blocklistError && <div style={{ color: 'red' }}>Blocklist 拉取失败: {blocklistError}</div>}
         </div>
-        <div style={{ margin: 16 }}>
-          <b>Console 测试：</b>
-          <button onClick={() => { console.log('测试日志'); alert('看控制台有无报错'); }}>打印日志</button>
-        </div>
-        <div style={{ margin: 16 }}>
-          <b>弹窗模拟：</b>
-          <button onClick={() => setShow(true)}>模拟拦截弹窗</button>
-        </div>
-        {show && (
-          <div style={{ border: '1px solid #ccc', margin: 16, padding: 16 }}>
-            <h2>{t('warning', { domain: url || 'https://facebook.com' })}</h2>
-            <div style={{ fontSize: 32, margin: 16 }}>{count}</div>
-            <button onClick={() => setShow(false)} style={{ fontSize: 18 }}>{t('confirm')}</button>
-          </div>
+      </div>
+    );
+  }
+
+  // Dashboard 只读展示blocklist
+  if (loading) return <div style={{ padding: 32 }}>加载中...</div>;
+  if (!dashboardData) return <div style={{ padding: 32 }}>暂无规则数据</div>;
+
+  // 计算当前时间命中的period
+  const now = new Date();
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  const cur = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const activePeriod = dashboardData.periods.find((p: any) => cur >= p.start && cur <= p.end);
+
+  return (
+    <div style={{ padding: 32, maxWidth: 600, margin: '0 auto' }}>
+      <h2>规则 Dashboard</h2>
+      <div style={{ margin: '16px 0' }}>
+        <b>当前时间：</b>{cur}
+      </div>
+      <div style={{ margin: '16px 0' }}>
+        <b>当前不可访问时间段：</b>
+        {activePeriod ? (
+          <span style={{ color: 'red', marginLeft: 8 }}>{activePeriod.start} ~ {activePeriod.end} ({activePeriod.domains.join(', ')})</span>
+        ) : (
+          <span style={{ color: 'green', marginLeft: 8 }}>当前无拦截</span>
         )}
       </div>
-    );
-  }
-
-  if (showAdmin) {
-    return (
-      <div style={{ padding: 32, textAlign: 'center' }}>
-        <h3>{t('admin_exit')}</h3>
-        <input
-          type="password"
-          value={adminPwd}
-          onChange={e => setAdminPwd(e.target.value)}
-          style={{ fontSize: 18, margin: 8 }}
-        />
-        <button onClick={handleAdminExit} style={{ fontSize: 18 }}>{t('confirm')}</button>
-        <div style={{ color: 'red', marginTop: 8 }}>{adminMsg}</div>
+      <div style={{ margin: '16px 0' }}>
+        <b>全部规则：</b>
+        <ul style={{ textAlign: 'left', background: '#f7f7f7', padding: 16, borderRadius: 8 }}>
+          {dashboardData.periods.map((p: any, i: number) => (
+            <li key={i} style={{ marginBottom: 8 }}>
+              <b>{p.start} ~ {p.end}</b> ：{p.domains.join(', ')}
+            </li>
+          ))}
+        </ul>
       </div>
-    );
-  }
-
-  if (!show) return null;
-  return (
-    <div style={{ padding: 32, textAlign: 'center' }}>
-      <h2>{t('warning', { domain: url })}</h2>
-      <div style={{ fontSize: 32, margin: 16 }}>{count}</div>
-      <button onClick={() => setShow(false)} style={{ fontSize: 18 }}>{t('confirm')}</button>
     </div>
   );
 };

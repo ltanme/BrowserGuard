@@ -6,7 +6,7 @@ module.exports = {
   mode: 'production',
   entry: './src/renderer/index.tsx',
   output: {
-    path: path.resolve(__dirname, 'dist'),
+    path: path.resolve(__dirname, 'dist/renderer'),
     filename: 'renderer.js',
   },
   resolve: {

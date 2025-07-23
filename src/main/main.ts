@@ -238,11 +238,11 @@ function checkAccessibility() {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 400,
-    height: 220,
-    show: false,
-    frame: false,
-    alwaysOnTop: true,
+    width: 800,
+    height: 600,
+    show: true, // 启动时自动显示窗口
+    frame: true, // 开发时有窗口边框
+    alwaysOnTop: false, // 开发时不置顶
     webPreferences: {
       preload: path.join(__dirname, '../preload/preload.js'),
       nodeIntegration: false,

@@ -63,7 +63,8 @@
       "assets/**",
       "node_modules/**",
       "package.json",
-      "build/**"
+      "build/**",
+      "dist/preload/**"
     ],
     "mac": {
       "target": "dmg",
