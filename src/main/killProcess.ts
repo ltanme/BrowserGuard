@@ -8,7 +8,7 @@ function logKill(msg: string) {
   );
 }
 
-export function killBrowserProcess(browser: 'chrome' | 'edge' | 'safari') {
+export function killBrowserProcess(browser: 'chrome' | 'edge' | 'safari' | 'firefox') {
   let cmd = '';
   if (process.platform === 'darwin') {
     switch (browser) {
@@ -21,6 +21,9 @@ export function killBrowserProcess(browser: 'chrome' | 'edge' | 'safari') {
       case 'safari':
         cmd = 'pkill Safari';
         break;
+      case 'firefox':
+        cmd = 'pkill Firefox';
+        break;
     }
   } else if (process.platform === 'win32') {
     switch (browser) {
@@ -29,6 +32,9 @@ export function killBrowserProcess(browser: 'chrome' | 'edge' | 'safari') {
         break;
       case 'edge':
         cmd = 'taskkill /IM msedge.exe /F';
+        break;
+      case 'firefox':
+        cmd = 'taskkill /IM firefox.exe /F';
         break;
       case 'safari':
         // Windows 无 Safari

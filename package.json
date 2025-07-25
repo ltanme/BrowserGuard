@@ -49,6 +49,10 @@
       {
         "from": "build/icon.png",
         "to": "build/icon.png"
+      },
+      {
+        "from": "dist/renderer",
+        "to": "renderer"
       }
     ],
     "files": [

@@ -8,7 +8,7 @@ function logGetUrl(msg: string) {
   );
 }
 
-export async function getCurrentUrl(browser: 'chrome' | 'edge' | 'safari'): Promise<string | null> {
+export async function getCurrentUrl(browser: 'chrome' | 'edge' | 'safari' | 'firefox'): Promise<string | null> {
   let script = '';
   switch (browser) {
     case 'chrome':
@@ -19,6 +19,9 @@ export async function getCurrentUrl(browser: 'chrome' | 'edge' | 'safari'): Prom
       break;
     case 'safari':
       script = 'tell application "Safari" to return URL of front document';
+      break;
+    case 'firefox':
+      script = 'tell application "Firefox" to return URL of active tab of front window';
       break;
     default:
       logGetUrl(`[${browser}] 不支持的浏览器类型`);

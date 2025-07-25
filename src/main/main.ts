@@ -30,6 +30,7 @@ let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let debugServer: DebugServer | null = null;
 let pendingQuit = false;
+let lastKillTime: { [browser: string]: number } = {};
 
 function writeLog(msg: string) {
   fs.mkdirSync(path.dirname(LOG_PATH), { recursive: true });
@@ -134,88 +135,98 @@ function isDomainBlocked(url: string): boolean {
 }
 
 async function pollBrowsers() {
-  writeLog('--- 开始轮询浏览器状态 ---');
-  const browsers: Array<'chrome' | 'edge' | 'safari'> = ['chrome', 'edge', 'safari'];
-  
-  for (const browser of browsers) {
-    writeLog(`[轮询] 检测浏览器: ${browser}`);
-    const url = await getCurrentUrl(browser);
-    const isRunning = url !== null;
-    writeLog(`[轮询] ${browser} 当前URL: ${url || '未获取到/未运行'}`);
+  try {
+    writeLog('--- 开始轮询浏览器状态 ---');
+    const browsers: Array<'chrome' | 'edge' | 'safari' | 'firefox'> = ['chrome', 'edge', 'safari', 'firefox'];
     
-    // Update browser status in debug server
-    if (debugServer) {
-      debugServer.updateState({
-        browsers: {
-          ...debugServer.getState().browsers,
-          [browser]: {
-            browser,
-            isRunning,
-            currentUrl: url,
-            lastChecked: new Date()
-          }
-        }
-      });
+    for (const browser of browsers) {
+      writeLog(`[轮询] 检测浏览器: ${browser}`);
+      const url = await getCurrentUrl(browser);
+      const isRunning = url !== null;
+      writeLog(`[轮询] ${browser} 当前URL: ${url || '未获取到/未运行'}`);
       
-      // Emit URL check event
-      debugServer.broadcastEvent({
-        type: 'url-check',
-        timestamp: new Date(),
-        data: {
-          browser,
-          url,
-          isRunning,
-          source: 'browser-polling'
-        }
-      });
-    }
-    
-    if (url && isDomainBlocked(url)) {
-      writeLog(`[检测] 命中拦截规则: ${url}`);
-      
-      // Emit blocking event
+      // Update browser status in debug server
       if (debugServer) {
+        debugServer.updateState({
+          browsers: {
+            ...debugServer.getState().browsers,
+            [browser]: {
+              browser,
+              isRunning,
+              currentUrl: url,
+              lastChecked: new Date()
+            }
+          }
+        });
+        
+        // Emit URL check event
         debugServer.broadcastEvent({
-          type: 'domain-blocked',
+          type: 'url-check',
           timestamp: new Date(),
           data: {
-            url,
             browser,
-            domain: extractDomain(url),
-            matchedRule: getCurrentActivePeriod(),
-            action: 'warning-shown'
+            url,
+            isRunning,
+            source: 'browser-polling'
           }
         });
       }
       
-      if (mainWindow) {
-        writeLog(`[弹窗] 通知前端弹窗: ${url}`);
-        mainWindow.webContents.send('show-warning', url);
-      }
-      
-      setTimeout(() => {
-        writeLog(`[KILL] 5秒后关闭浏览器进程: ${browser}`);
-        killBrowserProcess(browser);
+      if (url && isDomainBlocked(url)) {
+        writeLog(`[检测] 命中拦截规则: ${url}`);
         
-        // Emit browser kill event
+        // Emit blocking event
         if (debugServer) {
           debugServer.broadcastEvent({
-            type: 'browser-killed',
+            type: 'domain-blocked',
             timestamp: new Date(),
             data: {
-              browser,
               url,
-              reason: 'blocked-domain'
+              browser,
+              domain: extractDomain(url),
+              matchedRule: getCurrentActivePeriod(),
+              action: 'warning-shown'
             }
           });
         }
-      }, 5000);
-      break;
-    } else if (url) {
-      writeLog(`[检测] 未命中拦截规则: ${url}`);
+        
+        if (mainWindow) {
+          writeLog(`[弹窗] 通知前端弹窗: ${url}`);
+          mainWindow.webContents.send('show-warning', url);
+        }
+        
+        const now = Date.now();
+        if (!lastKillTime[browser] || now - lastKillTime[browser] > 30000) { // 30秒冷却
+          setTimeout(() => {
+            writeLog(`[KILL] 5秒后关闭浏览器进程: ${browser}`);
+            killBrowserProcess(browser);
+            lastKillTime[browser] = Date.now();
+            
+            // Emit browser kill event
+            if (debugServer) {
+              debugServer.broadcastEvent({
+                type: 'browser-killed',
+                timestamp: new Date(),
+                data: {
+                  browser,
+                  url,
+                  reason: 'blocked-domain'
+                }
+              });
+            }
+          }, 5000);
+        } else {
+          writeLog(`[KILL] 距离上次关闭${browser}不足30秒，跳过kill`);
+        }
+        break;
+      } else if (url) {
+        writeLog(`[检测] 未命中拦截规则: ${url}`);
+      }
     }
+    writeLog('--- 本轮轮询结束 ---');
+  } catch (e) {
+    writeLog('pollBrowsers error: ' + e);
   }
-  writeLog('--- 本轮轮询结束 ---');
 }
 
 function extractDomain(url: string): string {
@@ -250,7 +261,10 @@ function createWindow() {
       contextIsolation: true
     }
   });
-  mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+  const rendererPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'renderer', 'index.html')
+    : path.join(__dirname, '../renderer/index.html');
+  mainWindow.loadFile(rendererPath);
   mainWindow.on('close', (e) => {
     if (mainWindow) {
       e.preventDefault();
@@ -260,30 +274,38 @@ function createWindow() {
 }
 
 app.on('ready', async () => {
-  writeLog('App started (from packaged app)');
-  checkAccessibility();
-  createWindow();
-  tray = setupTray(app, mainWindow, ADMIN_PASSWORD, writeLog, createWindow);
-  
-  // Initialize debug server
-  debugServer = new DebugServer({
-    port: 3001,
-    host: 'localhost',
-    enabled: true // Enable debug server by default, can be configured later
-  }, writeLog);
-  
   try {
-    const debugPort = await debugServer.start();
-    if (debugPort > 0) {
-      writeLog(`Debug server available at http://localhost:${debugPort}`);
+    writeLog('App started (from packaged app)');
+    checkAccessibility();
+    writeLog('After checkAccessibility');
+    createWindow();
+    writeLog('After createWindow');
+    tray = setupTray(app, mainWindow, ADMIN_PASSWORD, writeLog, createWindow);
+    writeLog('After setupTray');
+    // Initialize debug server
+    debugServer = new DebugServer({
+      port: 3001,
+      host: 'localhost',
+      enabled: true
+    }, writeLog);
+    writeLog('After DebugServer creation');
+    try {
+      const debugPort = await debugServer.start();
+      if (debugPort > 0) {
+        writeLog(`Debug server available at http://localhost:${debugPort}`);
+      }
+    } catch (error) {
+      writeLog(`Failed to start debug server: ${error}`);
     }
-  } catch (error) {
-    writeLog(`Failed to start debug server: ${error}`);
+    fetchBlockList();
+    writeLog('After fetchBlockList');
+    setInterval(fetchBlockList, 30000);
+    writeLog('After setInterval(fetchBlockList)');
+    setInterval(pollBrowsers, 3000);
+    writeLog('After setInterval(pollBrowsers)');
+  } catch (e) {
+    writeLog('app.on(ready) error: ' + e);
   }
-  
-  fetchBlockList();
-  setInterval(fetchBlockList, 30000);
-  setInterval(pollBrowsers, 3000);
 });
 
 app.on('window-all-closed', (e: Electron.Event) => {
