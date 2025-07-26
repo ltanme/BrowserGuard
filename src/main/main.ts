@@ -6,6 +6,7 @@ import { BlockListResponse } from '../shared/types';
 import { killBrowserProcess } from './killProcess';
 import { setupTray } from './tray';
 import { DebugServer } from './debugServer';
+import { ConfigManager } from './config';
 
 // 检查是否在安装/卸载模式下运行
 const isInstallerMode = process.argv.some(arg => 
@@ -50,8 +51,8 @@ if (process.platform === 'darwin') {
   getCurrentUrl = async () => null;
 }
 
-const ADMIN_PASSWORD = 'Admin1234';
-const BLOCKLIST_URL = 'https://api.example.com/blocklist';
+// 配置管理器
+const configManager = new ConfigManager();
 const LOG_PATH = process.platform === 'darwin'
   ? path.join(app.getPath('home'), 'Library/Logs/BrowserGuard/renderer.log')
   : path.join(app.getPath('appData'), 'BrowserGuard', 'logs', 'renderer.log');
@@ -102,9 +103,11 @@ app.on('second-instance', (event, commandLine, workingDirectory) => {
 
 async function fetchBlockList() {
   try {
-    const res = await fetch(BLOCKLIST_URL);
+    const blocklistUrl = configManager.getBlocklistUrl();
+    const res = await fetch(blocklistUrl);
     const newBlocklist = await res.json();
     blocklist = newBlocklist;
+    configManager.updateLastReloadTime();
     writeLog('Blocklist updated');
     
     // Emit debug event for blocklist update
@@ -114,8 +117,8 @@ async function fetchBlockList() {
           data: blocklist,
           status: {
             lastUpdated: new Date(),
-            nextUpdate: new Date(Date.now() + 30000),
-            updateInterval: 30000,
+            nextUpdate: new Date(Date.now() + configManager.getAutoReloadInterval() * 1000),
+            updateInterval: configManager.getAutoReloadInterval() * 1000,
             isActive: true,
             currentPeriod: getCurrentActivePeriod()
           },
@@ -339,7 +342,7 @@ app.on('ready', async () => {
     
     // 设置托盘，如果失败则继续
     try {
-      tray = setupTray(app, mainWindow, ADMIN_PASSWORD, writeLog, createWindow);
+      tray = setupTray(app, mainWindow, configManager.getConfig().adminPassword, writeLog, createWindow);
       writeLog('After setupTray');
     } catch (trayError) {
       writeLog(`Tray setup failed: ${trayError}, continuing without tray`);
@@ -365,8 +368,9 @@ app.on('ready', async () => {
     // 启动核心功能
     fetchBlockList();
     writeLog('After fetchBlockList');
-    setInterval(fetchBlockList, 30000);
-    writeLog('After setInterval(fetchBlockList)');
+    const reloadInterval = configManager.getAutoReloadInterval() * 1000;
+    setInterval(fetchBlockList, reloadInterval);
+    writeLog(`After setInterval(fetchBlockList) - ${reloadInterval}ms`);
     setInterval(pollBrowsers, 3000);
     writeLog('After setInterval(pollBrowsers)');
     
@@ -419,11 +423,11 @@ app.on('activate', () => {
 });
 
 ipcMain.handle('check-admin-pwd', async (_e, pwd) => {
-  return pwd === ADMIN_PASSWORD;
+  return configManager.validateAdminPassword(pwd);
 });
 
 ipcMain.handle('admin-exit', async (_e, pwd) => {
-  if (pwd === ADMIN_PASSWORD) {
+  if (configManager.validateAdminPassword(pwd)) {
     writeLog('Admin exit success');
     pendingQuit = true;
     app.exit(0);
@@ -432,6 +436,45 @@ ipcMain.handle('admin-exit', async (_e, pwd) => {
     writeLog('Admin exit failed');
     return false;
   }
+});
+
+// 配置管理相关的IPC处理器
+ipcMain.handle('get-config', async () => {
+  return configManager.getConfig();
+});
+
+ipcMain.handle('update-admin-password', async (_e, newPassword: string) => {
+  configManager.updateAdminPassword(newPassword);
+  writeLog('Admin password updated');
+  return true;
+});
+
+ipcMain.handle('update-blocklist-url', async (_e, newUrl: string) => {
+  configManager.updateBlocklistUrl(newUrl);
+  writeLog(`Blocklist URL updated to: ${newUrl}`);
+  return true;
+});
+
+ipcMain.handle('update-auto-reload-interval', async (_e, interval: number) => {
+  configManager.updateAutoReloadInterval(interval);
+  writeLog(`Auto reload interval updated to: ${interval}s`);
+  return true;
+});
+
+ipcMain.handle('is-first-run', async () => {
+  return configManager.isFirstRun();
+});
+
+ipcMain.handle('mark-not-first-run', async () => {
+  configManager.markAsNotFirstRun();
+  writeLog('Marked as not first run');
+  return true;
+});
+
+ipcMain.handle('reset-config', async () => {
+  configManager.resetToDefault();
+  writeLog('Config reset to default');
+  return true;
 }); 
 
 ipcMain.handle('get-blocklist', async () => blocklist); 

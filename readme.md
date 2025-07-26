@@ -43,12 +43,49 @@ npm run build:win
 
 ## 功能说明
 
+### 核心功能
 - 开机自启（macOS LaunchAgent/Windows 注册表）
 - 轮询 blocklist 接口，实时拦截受限域名
 - 支持 Chrome/Safari/Edge/Firefox
 - 多语言弹窗（中/英）
 - 日志写入 `~/Library/Logs/BrowserGuard/renderer.log` 或 `%APPDATA%\BrowserGuard\logs\renderer.log`
 - 仅管理员密码可退出
+
+### 新增功能
+- **首次运行设置**：初次启动时自动引导用户设置管理员密码和规则接口
+- **本地配置管理**：密码和配置信息保存在本地，支持修改
+- **自动规则重载**：可配置的自动重载间隔，新规则自动生效
+- **跨平台支持**：Windows 和 macOS 分别处理配置文件路径
+- **Dashboard界面**：显示当前规则、配置信息和重载状态
+
+### 默认配置
+- 管理员密码：`123456`
+- 规则接口：`https://api.example.com/blocklist`
+- 自动重载间隔：30秒
+- 配置文件位置：
+  - macOS: `~/Library/Application Support/BrowserGuard/config.json`
+  - Windows: `%APPDATA%\BrowserGuard\config.json`
+
+## 使用说明
+
+### 首次运行
+1. 启动应用后会自动显示首次运行设置界面
+2. 设置管理员密码（默认为123456）
+3. 配置规则接口URL
+4. 设置自动重载间隔（10-300秒）
+5. 点击"完成设置"进入主界面
+
+### 日常使用
+1. 启动应用后输入管理员密码登录
+2. 在Dashboard中查看当前规则和配置信息
+3. 点击"配置设置"可修改密码、规则接口和重载间隔
+4. 规则会自动重载并生效，无需手动操作
+5. 退出应用需要输入管理员密码
+
+### 配置修改
+- **管理员密码**：在配置设置中修改，留空则不修改
+- **规则接口URL**：支持HTTP/HTTPS接口，返回JSON格式的规则数据
+- **自动重载间隔**：建议10-300秒，过短可能影响性能，过长可能延迟规则更新
 
 ## 目录结构
 
