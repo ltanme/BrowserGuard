@@ -1,6 +1,6 @@
 {
   "name": "browserguard-m4",
-  "version": "1.0.0",
+  "version": "1.250726.1918",
   "description": "跨平台守护型桌面 App (macOS/Windows) Electron + TypeScript + React",
   "main": "dist/main/main.js",
   "author": "",
@@ -35,6 +35,7 @@
     "copy-webpack-plugin": "^13.0.0",
     "electron": "^28.2.3",
     "electron-builder": "24.13.3",
+    "png-to-ico": "^2.1.8",
     "ts-loader": "^9.5.1",
     "typescript": "^5.4.5",
     "webpack": "^5.91.0",
@@ -53,6 +54,10 @@
       {
         "from": "dist/renderer",
         "to": "renderer"
+      },
+      {
+        "from": "scripts",
+        "to": "scripts"
       }
     ],
     "files": [
@@ -83,6 +88,19 @@
           "ia32"
         ]
       }
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "BrowserGuard",
+      "deleteAppDataOnUninstall": true,
+      "runAfterFinish": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico"
     }
   }
 }

@@ -1,9 +1,19 @@
 import { exec } from 'child_process';
 import fs from 'fs';
+import path from 'path';
+import { app } from 'electron';
+
+function getLogPath(): string {
+  return process.platform === 'darwin'
+    ? path.join(require('os').homedir(), 'Library/Logs/BrowserGuard/renderer.log')
+    : path.join(app.getPath('appData'), 'BrowserGuard', 'logs', 'renderer.log');
+}
 
 function logKill(msg: string) {
+  const logPath = getLogPath();
+  fs.mkdirSync(path.dirname(logPath), { recursive: true });
   fs.appendFileSync(
-    require('os').homedir() + '/Library/Logs/BrowserGuard/renderer.log',
+    logPath,
     `[killProcess] [${new Date().toISOString()}] ${msg}\n`
   );
 }

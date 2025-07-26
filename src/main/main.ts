@@ -3,10 +3,52 @@ import path from 'path';
 import fs from 'fs';
 import log from 'electron-log';
 import { BlockListResponse } from '../shared/types';
-import { getCurrentUrl } from './getUrlMac'; // macOS，后续根据平台切换
 import { killBrowserProcess } from './killProcess';
 import { setupTray } from './tray';
 import { DebugServer } from './debugServer';
+
+// 检查是否在安装/卸载模式下运行
+const isInstallerMode = process.argv.some(arg => 
+  arg.includes('--install') || 
+  arg.includes('--uninstall') || 
+  arg.includes('--update') ||
+  process.env.ELECTRON_IS_DEV === 'true'
+);
+
+// 单实例检查 - 在安装/卸载模式下跳过
+if (!isInstallerMode) {
+  const gotTheLock = app.requestSingleInstanceLock();
+
+  if (!gotTheLock) {
+    console.log('另一个实例正在运行，退出当前实例');
+    // 使用更温和的退出方式
+    app.quit();
+    // 延迟退出，给进程一些时间清理
+    setTimeout(() => {
+      process.exit(0);
+    }, 100);
+  } else {
+    // 确保在应用退出时释放锁
+    app.on('before-quit', () => {
+      // 这里可以添加清理逻辑
+    });
+  }
+} else {
+  console.log('安装/卸载模式，跳过单实例检查');
+}
+
+// 根据平台导入正确的 URL 获取函数
+let getCurrentUrl: (browser: 'chrome' | 'edge' | 'safari' | 'firefox') => Promise<string | null>;
+if (process.platform === 'darwin') {
+  const { getCurrentUrl: getCurrentUrlMac } = require('./getUrlMac');
+  getCurrentUrl = getCurrentUrlMac;
+} else if (process.platform === 'win32') {
+  const { getCurrentUrl: getCurrentUrlWin } = require('./getUrlWin');
+  getCurrentUrl = getCurrentUrlWin;
+} else {
+  // Linux 或其他平台，暂时返回 null
+  getCurrentUrl = async () => null;
+}
 
 const ADMIN_PASSWORD = 'Admin1234';
 const BLOCKLIST_URL = 'https://api.example.com/blocklist';
@@ -47,6 +89,16 @@ function writeLog(msg: string) {
     });
   }
 }
+
+// 设置 second-instance 事件监听器
+app.on('second-instance', (event, commandLine, workingDirectory) => {
+  writeLog('检测到另一个实例启动，激活当前窗口');
+  // 如果主窗口存在，显示它
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  }
+});
 
 async function fetchBlockList() {
   try {
@@ -137,7 +189,11 @@ function isDomainBlocked(url: string): boolean {
 async function pollBrowsers() {
   try {
     writeLog('--- 开始轮询浏览器状态 ---');
-    const browsers: Array<'chrome' | 'edge' | 'safari' | 'firefox'> = ['chrome', 'edge', 'safari', 'firefox'];
+    // 根据平台选择要检测的浏览器
+    const browsers: Array<'chrome' | 'edge' | 'safari' | 'firefox'> = 
+      process.platform === 'darwin' 
+        ? ['chrome', 'edge', 'safari', 'firefox']  // macOS 支持所有浏览器
+        : ['chrome', 'edge', 'firefox'];           // Windows 不支持 Safari
     
     for (const browser of browsers) {
       writeLog(`[轮询] 检测浏览器: ${browser}`);
@@ -280,38 +336,47 @@ app.on('ready', async () => {
     writeLog('After checkAccessibility');
     createWindow();
     writeLog('After createWindow');
-    tray = setupTray(app, mainWindow, ADMIN_PASSWORD, writeLog, createWindow);
-    writeLog('After setupTray');
-    // Initialize debug server
-    debugServer = new DebugServer({
-      port: 3001,
-      host: 'localhost',
-      enabled: true
-    }, writeLog);
-    writeLog('After DebugServer creation');
+    
+    // 设置托盘，如果失败则继续
     try {
+      tray = setupTray(app, mainWindow, ADMIN_PASSWORD, writeLog, createWindow);
+      writeLog('After setupTray');
+    } catch (trayError) {
+      writeLog(`Tray setup failed: ${trayError}, continuing without tray`);
+    }
+    
+    // Initialize debug server
+    try {
+      debugServer = new DebugServer({
+        port: 3001,
+        host: 'localhost',
+        enabled: true
+      }, writeLog);
+      writeLog('After DebugServer creation');
+      
       const debugPort = await debugServer.start();
       if (debugPort > 0) {
         writeLog(`Debug server available at http://localhost:${debugPort}`);
       }
     } catch (error) {
-      writeLog(`Failed to start debug server: ${error}`);
+      writeLog(`Failed to start debug server: ${error}, continuing without debug server`);
     }
+    
+    // 启动核心功能
     fetchBlockList();
     writeLog('After fetchBlockList');
     setInterval(fetchBlockList, 30000);
     writeLog('After setInterval(fetchBlockList)');
     setInterval(pollBrowsers, 3000);
     writeLog('After setInterval(pollBrowsers)');
+    
+    writeLog('App initialization completed successfully');
   } catch (e) {
     writeLog('app.on(ready) error: ' + e);
   }
 });
 
-app.on('window-all-closed', (e: Electron.Event) => {
-  e.preventDefault(); // 禁止关闭
-});
-
+// 添加更好的进程清理
 app.on('before-quit', (e) => {
   if (!pendingQuit) {
     e.preventDefault();
@@ -319,6 +384,30 @@ app.on('before-quit', (e) => {
       mainWindow.webContents.send('show-admin-exit');
     }
   }
+});
+
+// 确保进程完全退出
+app.on('will-quit', () => {
+  writeLog('Application will quit, cleaning up...');
+  // 清理定时器 - 使用更安全的方式
+  try {
+    // 这里可以添加其他清理逻辑
+    writeLog('Cleanup completed');
+  } catch (error) {
+    writeLog(`Cleanup error: ${error}`);
+  }
+});
+
+// 处理未捕获的异常
+process.on('uncaughtException', (error) => {
+  writeLog(`Uncaught Exception: ${error.message}`);
+  writeLog(`Stack: ${error.stack}`);
+  app.quit();
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  writeLog(`Unhandled Rejection at: ${promise}, reason: ${reason}`);
+  app.quit();
 });
 
 app.on('activate', () => {
