@@ -8,7 +8,27 @@ function logGetUrl(msg: string) {
   );
 }
 
+function isBrowserRunning(browser: 'chrome' | 'edge' | 'safari' | 'firefox'): boolean {
+  try {
+    let processName = '';
+    switch (browser) {
+      case 'chrome': processName = 'Google Chrome'; break;
+      case 'edge': processName = 'Microsoft Edge'; break;
+      case 'safari': processName = 'Safari'; break;
+      case 'firefox': processName = 'Firefox'; break;
+    }
+    require('child_process').execSync(`pgrep -x "${processName}"`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function getCurrentUrl(browser: 'chrome' | 'edge' | 'safari' | 'firefox'): Promise<string | null> {
+  if (!isBrowserRunning(browser)) {
+    logGetUrl(`[${browser}] 未运行，跳过 AppleScript`);
+    return null;
+  }
   let script = '';
   switch (browser) {
     case 'chrome':

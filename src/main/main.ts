@@ -12,7 +12,7 @@ const ADMIN_PASSWORD = 'Admin1234';
 const BLOCKLIST_URL = 'https://api.example.com/blocklist';
 const LOG_PATH = process.platform === 'darwin'
   ? path.join(app.getPath('home'), 'Library/Logs/BrowserGuard/renderer.log')
-  : path.join(app.getPath('appData'), 'BrowserGuard/logs/renderer.log');
+  : path.join(app.getPath('appData'), 'BrowserGuard', 'logs', 'renderer.log');
 
 const defaultBlocklist: BlockListResponse = {
   periods: [
