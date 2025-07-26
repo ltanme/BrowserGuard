@@ -2,7 +2,7 @@
 
 ## 安装与运行
 
-1. `git clone` 本仓库，`cd BrowserGuard-M4`
+1. `git clone` 本仓库，`cd BrowserGuard`
 2. `npm install`
 3. 开发模式：`npm run dev`
 4. 打包：使用 `./build.sh` 脚本
