@@ -1,0 +1,55 @@
+{
+  "periods": [
+    {
+      "start": "08:00",
+      "end": "12:00",
+      "domains": [
+        "poki.com",
+        "4399.com",
+        "7k7k.com",
+        "y8.com",
+        "miniclip.com",
+        "kongregate.com",
+        "crazygames.com",
+        "game.com.cn"
+      ]
+    },
+    {
+      "start": "13:30",
+      "end": "17:30",
+      "domains": [
+        "poki.com",
+        "4399.com",
+        "7k7k.com",
+        "y8.com",
+        "miniclip.com",
+        "kongregate.com",
+        "crazygames.com",
+        "game.com.cn"
+      ]
+    },
+    {
+      "start": "19:00",
+      "end": "22:00",
+      "domains": [
+        "poki.com",
+        "4399.com",
+        "7k7k.com",
+        "y8.com",
+        "miniclip.com",
+        "kongregate.com",
+        "crazygames.com",
+        "game.com.cn",
+        "douyin.com",
+        "tiktok.com",
+        "kuaishou.com",
+        "bilibili.com",
+        "ixigua.com",
+        "youtube.com",
+        "instagram.com",
+        "facebook.com",
+        "weibo.com"
+      ]
+    }
+  ]
+}
