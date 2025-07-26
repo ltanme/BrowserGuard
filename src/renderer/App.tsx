@@ -57,6 +57,7 @@ declare global {
       isFirstRun?: () => Promise<boolean>;
       markNotFirstRun?: () => Promise<boolean>;
       resetConfig?: () => Promise<boolean>;
+      onBlocklistUpdated?: (callback: (newBlocklist: any) => void) => void;
     };
   }
 }
@@ -140,6 +141,15 @@ const App: React.FC = () => {
         .finally(() => setLoading(false));
     }
   }, [showAdmin, showFirstRunSetup]);
+
+  // 监听主进程推送的blocklist更新
+  useEffect(() => {
+    if (window.electronAPI?.onBlocklistUpdated) {
+      window.electronAPI.onBlocklistUpdated((newBlocklist) => {
+        setDashboardData(newBlocklist);
+      });
+    }
+  }, []);
 
   // 弹窗优先显示
   useEffect(() => {

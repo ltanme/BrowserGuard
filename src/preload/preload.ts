@@ -13,5 +13,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateAutoReloadInterval: (interval: number) => ipcRenderer.invoke('update-auto-reload-interval', interval),
   isFirstRun: () => ipcRenderer.invoke('is-first-run'),
   markNotFirstRun: () => ipcRenderer.invoke('mark-not-first-run'),
-  resetConfig: () => ipcRenderer.invoke('reset-config')
+  resetConfig: () => ipcRenderer.invoke('reset-config'),
+  onBlocklistUpdated: (cb: (data: any) => void) => ipcRenderer.on('blocklist-updated', (_e, data) => cb(data))
 }); 

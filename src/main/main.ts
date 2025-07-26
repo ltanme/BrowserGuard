@@ -109,6 +109,10 @@ async function fetchBlockList() {
     blocklist = newBlocklist;
     configManager.updateLastReloadTime();
     writeLog('Blocklist updated');
+    // 主动推送到前端
+    if (mainWindow) {
+      mainWindow.webContents.send('blocklist-updated', blocklist);
+    }
     
     // Emit debug event for blocklist update
     if (debugServer) {
