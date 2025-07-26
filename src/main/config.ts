@@ -8,13 +8,15 @@ export interface AppConfig {
   autoReloadInterval: number; // 自动重载间隔（秒）
   lastReloadTime?: string;
   isFirstRun: boolean;
+  debug: boolean; // 调试模式，控制日志输出
 }
 
 const DEFAULT_CONFIG: AppConfig = {
   adminPassword: '123456',
   blocklistUrl: 'http://192.168.100.193/blocklist.json',
   autoReloadInterval: 30, // 30秒
-  isFirstRun: true
+  isFirstRun: true,
+  debug: false // 默认关闭调试模式
 };
 
 export class ConfigManager {
@@ -128,6 +130,17 @@ export class ConfigManager {
   // 重置为默认配置
   resetToDefault(): void {
     this.config = { ...DEFAULT_CONFIG };
+    this.saveConfig();
+  }
+
+  // 获取debug状态
+  getDebug(): boolean {
+    return this.config.debug;
+  }
+
+  // 更新debug状态
+  updateDebug(debug: boolean): void {
+    this.config.debug = debug;
     this.saveConfig();
   }
 } 

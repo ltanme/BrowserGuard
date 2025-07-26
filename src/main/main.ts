@@ -195,7 +195,9 @@ function isDomainBlocked(url: string): boolean {
 
 async function pollBrowsers() {
   try {
-    writeLog('--- 开始轮询浏览器状态 ---');
+    if (configManager.getDebug()) {
+      writeLog('--- 开始轮询浏览器状态 ---');
+    }
     // 根据平台选择要检测的浏览器
     const browsers: Array<'chrome' | 'edge' | 'safari' | 'firefox'> = 
       process.platform === 'darwin' 
@@ -203,10 +205,14 @@ async function pollBrowsers() {
         : ['chrome', 'edge', 'firefox'];           // Windows 不支持 Safari
     
     for (const browser of browsers) {
-      writeLog(`[轮询] 检测浏览器: ${browser}`);
+      if (configManager.getDebug()) {
+        writeLog(`[轮询] 检测浏览器: ${browser}`);
+      }
       const url = await getCurrentUrl(browser);
       const isRunning = url !== null;
-      writeLog(`[轮询] ${browser} 当前URL: ${url || '未获取到/未运行'}`);
+      if (configManager.getDebug()) {
+        writeLog(`[轮询] ${browser} 当前URL: ${url ?? '未获取到/未运行'}`);
+      }
       
       // Update browser status in debug server
       if (debugServer) {
@@ -286,7 +292,9 @@ async function pollBrowsers() {
         writeLog(`[检测] 未命中拦截规则: ${url}`);
       }
     }
-    writeLog('--- 本轮轮询结束 ---');
+    if (configManager.getDebug()) {
+      writeLog('--- 本轮轮询结束 ---');
+    }
   } catch (e) {
     writeLog('pollBrowsers error: ' + e);
   }
@@ -482,3 +490,9 @@ ipcMain.handle('reset-config', async () => {
 }); 
 
 ipcMain.handle('get-blocklist', async () => blocklist); 
+ipcMain.handle('get-debug', async () => configManager.getDebug());
+ipcMain.handle('update-debug', async (_e, debug: boolean) => {
+  configManager.updateDebug(debug);
+  writeLog(`Debug模式已${debug ? '开启' : '关闭'}`);
+  return true;
+}); 

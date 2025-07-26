@@ -58,6 +58,7 @@ declare global {
       markNotFirstRun?: () => Promise<boolean>;
       resetConfig?: () => Promise<boolean>;
       onBlocklistUpdated?: (callback: (newBlocklist: any) => void) => void;
+      updateDebug?: (debug: boolean) => Promise<boolean>;
     };
   }
 }
@@ -90,6 +91,7 @@ const App: React.FC = () => {
   const [newPassword, setNewPassword] = useState('');
   const [newBlocklistUrl, setNewBlocklistUrl] = useState('');
   const [newReloadInterval, setNewReloadInterval] = useState(30);
+  const [debug, setDebug] = useState(false);
 
   // 检查是否首次运行
   useEffect(() => {
@@ -114,6 +116,7 @@ const App: React.FC = () => {
       try {
         const appConfig = await window.electronAPI?.getConfig?.();
         setConfig(appConfig);
+        setDebug(appConfig?.debug ?? false);
       } catch (error) {
         console.error('加载配置失败:', error);
       }
@@ -151,7 +154,7 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // 弹窗优先显示
+  // 弹窗优先显示 - 在任何状态下都应该显示
   useEffect(() => {
     window.electronAPI?.onShowWarning((url) => {
       setWarningUrl(url);
@@ -215,6 +218,7 @@ const App: React.FC = () => {
       }
       
       await window.electronAPI?.updateAutoReloadInterval?.(newReloadInterval);
+      await window.electronAPI?.updateDebug?.(debug);
       
       // 重新加载配置
       const appConfig = await window.electronAPI?.getConfig?.();
@@ -238,6 +242,43 @@ const App: React.FC = () => {
     }
   };
 
+  // 警告弹窗 - 在任何状态下都应该显示，优先级最高
+  if (showWarning) {
+    return (
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.8)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000
+      }}>
+        <div style={{
+          backgroundColor: 'white',
+          padding: '30px',
+          borderRadius: '8px',
+          maxWidth: '500px',
+          textAlign: 'center'
+        }}>
+          <h2 style={{ color: '#dc3545' }}>⚠️ 访问被阻止</h2>
+          <p>检测到您正在访问被阻止的网站：</p>
+          <p style={{ fontWeight: 'bold', color: '#dc3545' }}>{warningUrl}</p>
+          <p>该网站将在5秒后自动关闭。</p>
+          <button
+            onClick={() => setShowWarning(false)}
+            style={{ padding: '10px 20px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px' }}
+          >
+            知道了
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // 首次运行设置界面
   if (showFirstRunSetup) {
     return (
@@ -247,13 +288,14 @@ const App: React.FC = () => {
         
         <div style={{ marginBottom: '15px' }}>
           <label>管理员密码：</label>
-          <input
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            placeholder="默认密码：123456"
-            style={{ width: '100%', padding: '8px', marginTop: '5px' }}
-          />
+                      <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="默认密码：123456"
+              style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+              autoComplete="off"
+            />
         </div>
         
         <div style={{ marginBottom: '15px' }}>
@@ -305,6 +347,7 @@ const App: React.FC = () => {
             onKeyDown={handleKeyDown}
             placeholder="请输入密码"
             style={{ width: '100%', padding: '10px', fontSize: '16px' }}
+            autoComplete="off"
             autoFocus
           />
         </div>
@@ -317,6 +360,19 @@ const App: React.FC = () => {
         >
           {pendingExit ? '退出' : '登录'}
         </button>
+        
+        {pendingExit && (
+          <button
+            onClick={() => {
+              setPendingExit(false);
+              setAdminPwd('');
+              setAdminMsg('');
+            }}
+            style={{ padding: '10px 20px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', marginLeft: '10px' }}
+          >
+            返回
+          </button>
+        )}
         
         {!pendingExit && (
           <button
@@ -338,13 +394,14 @@ const App: React.FC = () => {
         
         <div style={{ marginBottom: '15px' }}>
           <label>管理员密码：</label>
-          <input
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            placeholder="留空则不修改"
-            style={{ width: '100%', padding: '8px', marginTop: '5px' }}
-          />
+                      <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="留空则不修改"
+              style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+              autoComplete="off"
+            />
         </div>
         
         <div style={{ marginBottom: '15px' }}>
@@ -371,6 +428,17 @@ const App: React.FC = () => {
         </div>
         
         <div style={{ marginBottom: '15px' }}>
+          <label>调试模式（debug）：</label>
+          <input
+            type="checkbox"
+            checked={debug}
+            onChange={e => setDebug(e.target.checked)}
+            style={{ marginLeft: '10px' }}
+          />
+          <span style={{ marginLeft: '8px', color: '#888' }}>开启后将详细打印轮询日志</span>
+        </div>
+        
+        <div style={{ marginBottom: '15px' }}>
           <p><strong>当前配置：</strong></p>
           <p>规则接口：{config?.blocklistUrl}</p>
           <p>自动重载间隔：{config?.autoReloadInterval}秒</p>
@@ -390,43 +458,6 @@ const App: React.FC = () => {
         >
           返回
         </button>
-      </div>
-    );
-  }
-
-  // 警告弹窗
-  if (showWarning) {
-    return (
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.8)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000
-      }}>
-        <div style={{
-          backgroundColor: 'white',
-          padding: '30px',
-          borderRadius: '8px',
-          maxWidth: '500px',
-          textAlign: 'center'
-        }}>
-          <h2 style={{ color: '#dc3545' }}>⚠️ 访问被阻止</h2>
-          <p>检测到您正在访问被阻止的网站：</p>
-          <p style={{ fontWeight: 'bold', color: '#dc3545' }}>{warningUrl}</p>
-          <p>该网站将在5秒后自动关闭。</p>
-          <button
-            onClick={() => setShowWarning(false)}
-            style={{ padding: '10px 20px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px' }}
-          >
-            知道了
-          </button>
-        </div>
       </div>
     );
   }

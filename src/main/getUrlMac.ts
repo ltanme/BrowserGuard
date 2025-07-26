@@ -2,6 +2,9 @@ import { exec } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { app } from 'electron';
+import { ConfigManager } from './config';
+
+const configManager = new ConfigManager();
 
 function getLogPath(): string {
   return process.platform === 'darwin'
@@ -10,6 +13,7 @@ function getLogPath(): string {
 }
 
 function logGetUrl(msg: string) {
+  if (!configManager.getDebug()) return;
   const logPath = getLogPath();
   fs.mkdirSync(path.dirname(logPath), { recursive: true });
   fs.appendFileSync(

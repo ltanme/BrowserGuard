@@ -14,5 +14,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   isFirstRun: () => ipcRenderer.invoke('is-first-run'),
   markNotFirstRun: () => ipcRenderer.invoke('mark-not-first-run'),
   resetConfig: () => ipcRenderer.invoke('reset-config'),
-  onBlocklistUpdated: (cb: (data: any) => void) => ipcRenderer.on('blocklist-updated', (_e, data) => cb(data))
+  onBlocklistUpdated: (cb: (data: any) => void) => ipcRenderer.on('blocklist-updated', (_e, data) => cb(data)),
+  getDebug: () => ipcRenderer.invoke('get-debug'),
+  updateDebug: (debug: boolean) => ipcRenderer.invoke('update-debug', debug)
 }); 

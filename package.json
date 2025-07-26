@@ -1,6 +1,6 @@
 {
   "name": "browserguard-m4",
-  "version": "1.250726.2001",
+  "version": "1.250726.2054",
   "description": "跨平台守护型桌面 App (macOS/Windows) Electron + TypeScript + React",
   "main": "dist/main/main.js",
   "author": "",
