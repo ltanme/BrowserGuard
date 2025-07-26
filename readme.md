@@ -1,4 +1,4 @@
-# BrowserGuard-M4
+# BrowserGuard
 
 ## 安装与运行
 
