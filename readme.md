@@ -1,5 +1,8 @@
 # BrowserGuard
 
+## 项目简介
+BrowserGuard 是一款专为家庭电脑学习管理设计的智能浏览器监控工具。通过实时监控浏览器访问行为，自动拦截游戏网站、短视频平台等娱乐内容，帮助孩子建立健康的上网习惯，实现防沉迷管理。
+
 ## 安装与运行
 
 1. `git clone` 本仓库，`cd BrowserGuard`
@@ -127,7 +130,33 @@ npm run build:win
 
 ## CI 自动化
 
-- `.github/workflows/build.yml` 自动打包 DMG/EXE
+### GitHub Actions 自动构建和发布
+
+项目已配置 GitHub Actions 工作流，支持自动构建和发布：
+
+#### 触发方式
+1. **标签触发**（推荐）：
+   ```bash
+   git tag v1.0.0
+   git push origin v1.0.0
+   ```
+
+2. **手动触发**：
+   - 在 GitHub 仓库页面点击 "Actions" 标签
+   - 选择 "Build and Release" 工作流
+   - 点击 "Run workflow" 并输入版本号
+
+#### 构建流程
+- 并行构建 macOS 和 Windows 版本
+- 自动安装依赖和编译代码
+- 生成 DMG 和 EXE 安装包
+- 创建 GitHub Release 并上传安装包
+
+#### 输出文件
+- **macOS**: `BrowserGuard-{version}-arm64.dmg`
+- **Windows**: `BrowserGuard-Setup-{version}-ia32.exe`
+
+详细说明请参考 [`.github/README.md`](.github/README.md)
 
 ## 开发说明
 
