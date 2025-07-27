@@ -15,7 +15,9 @@
     "build:mac": "npm run build && electron-builder --mac --arm64 --publish never",
     "build:win": "npm run build && electron-builder --win --ia32 --publish never",
     "publish:mac": "npm run build && electron-builder --mac --arm64 --publish always",
-    "publish:win": "npm run build && electron-builder --win --ia32 --publish always"
+    "publish:win": "npm run build && electron-builder --win --ia32 --publish always",
+    "build:mac:ci": "npm run build && electron-builder --mac --arm64 --publish always",
+    "build:win:ci": "npm run build && electron-builder --win --ia32 --publish always"
   },
   "dependencies": {
     "@types/react-i18next": "^7.8.3",

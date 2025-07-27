@@ -44,14 +44,17 @@ jobs:
     - name: Build for macOS
       if: matrix.os == 'macos-latest'
       run: |
-        npm run build:mac
+        npm run build:mac:ci
       env:
         CSC_IDENTITY_AUTO_DISCOVERY: false
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Build for Windows
       if: matrix.os == 'windows-latest'
       run: |
-        npm run build:win
+        npm run build:win:ci
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: List build artifacts
       run: |
@@ -96,8 +99,6 @@ jobs:
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # 如果设置了自定义token，可以使用下面的方式
-        # GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
       with:
         tag_name: ${{ github.ref_name }}
         release_name: BrowserGuard ${{ github.ref_name }}
@@ -142,8 +143,6 @@ jobs:
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # 如果设置了自定义token，可以使用下面的方式
-        # GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ./artifacts/browser-guard-macos-latest/BrowserGuard-*.dmg
@@ -154,8 +153,6 @@ jobs:
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # 如果设置了自定义token，可以使用下面的方式
-        # GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ./artifacts/browser-guard-windows-latest/BrowserGuard*.exe
