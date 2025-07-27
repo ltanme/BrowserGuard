@@ -1,6 +1,6 @@
 {
   "name": "browserguard",
-  "version": "1.0.2",
+  "version": "1.0.4",
   "description": "跨平台守护型桌面 App (macOS/Windows) Electron + TypeScript + React",
   "main": "dist/main/main.js",
   "author": "",
@@ -104,6 +104,10 @@
       "runAfterFinish": false,
       "perMachine": false,
       "allowElevation": true
+    },
+    "publish": {
+      "provider": "github",
+      "releaseType": "release"
     }
   }
 }
