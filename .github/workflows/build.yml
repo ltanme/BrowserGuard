@@ -36,6 +36,17 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
+    - name: Check build files
+      run: |
+        echo "=== Checking build files ==="
+        ls -la build/
+        echo "=== Checking if icon.ico exists ==="
+        if [ -f "build/icon.ico" ]; then
+          echo "✅ icon.ico exists"
+        else
+          echo "❌ icon.ico not found"
+        fi
+
     - name: Build application
       run: |
         npm run build:main

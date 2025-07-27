@@ -91,7 +91,8 @@
         "arch": [
           "ia32"
         ]
-      }
+      },
+      "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": false,
@@ -102,9 +103,7 @@
       "deleteAppDataOnUninstall": true,
       "runAfterFinish": false,
       "perMachine": false,
-      "allowElevation": true,
-      "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico"
+      "allowElevation": true
     }
   }
 }
