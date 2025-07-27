@@ -2,8 +2,11 @@
 
 ## 项目简介
 BrowserGuard 是一款专为家庭电脑学习管理设计的智能浏览器监控工具。通过实时监控浏览器访问行为，自动拦截游戏网站、短视频平台等娱乐内容，帮助孩子建立健康的上网习惯，实现防沉迷管理。
+> ![检测到游戏网站自动关闭](./docs/检测到游戏网站自动关闭.png)
 
 ## 安装与运行
+
+> **快速体验**：如果你只想直接使用，无需源码编译，可前往 [Releases 页面](https://github.com/ltanme/BrowserGuard/releases) 下载适合你系统的安装包（支持 macOS 和 Windows），安装后即可运行。
 
 1. `git clone` 本仓库，`cd BrowserGuard`
 2. `npm install`
