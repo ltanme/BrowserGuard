@@ -140,6 +140,13 @@ push_changes() {
         exit 1
     fi
     
+    # 重新创建标签（确保指向最新提交）
+    print_info "重新创建标签 $tag_name（指向最新提交）..."
+    if git tag -l | grep -q "^$tag_name$"; then
+        git tag -d "$tag_name"
+    fi
+    git tag "$tag_name"
+    
     # 推送标签
     print_info "推送标签 $tag_name..."
     if ! git push origin "$tag_name"; then
@@ -249,9 +256,6 @@ main() {
     
     # 验证版本号更新
     verify_version_update "$version"
-    
-    # 创建Git标签
-    create_git_tag "$version"
     
     # 推送更改
     push_changes "$version"
