@@ -72,6 +72,29 @@ npm run build:win
   - macOS: `~/Library/Application Support/BrowserGuard/config.json`
   - Windows: `%APPDATA%\BrowserGuard\config.json`
 
+### 拦截规则说明（blocklist.json）
+
+- 应用会定时从配置的规则接口（或本地文件）拉取拦截规则，规则格式为 JSON，示例见 `blocklist.json`。
+- 每条规则可指定生效时间段（start/end）和对应的受限域名列表（domains）。
+- 支持多个时间段和不同的域名组合，便于灵活配置学习/娱乐时段。
+
+#### blocklist.json 示例
+- https://raw.githubusercontent.com/ltanme/BrowserGuard/refs/heads/master/blocklist.json
+```json
+{
+  "periods": [
+    {
+      "start": "08:00",
+      "end": "12:00",
+      "domains": [
+        "poki.com",
+        "4399.com"
+        ]
+    }
+}
+```
+
+
 ## 界面预览
 
 ### 1. 管理员登录界面
