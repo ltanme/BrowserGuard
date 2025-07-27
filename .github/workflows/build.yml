@@ -36,11 +36,19 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
+    - name: Check version and build files
+      run: |
+        echo "=== Current Git tag ==="
+        echo "GITHUB_REF: $GITHUB_REF"
+        echo "GITHUB_REF_NAME: $GITHUB_REF_NAME"
+        echo "=== Package.json version ==="
+        node -p "require('./package.json').version"
+        echo "=== Checking build files ==="
+        ls -la build/
+
     - name: Check build files (macOS)
       if: matrix.os == 'macos-latest'
       run: |
-        echo "=== Checking build files ==="
-        ls -la build/
         echo "=== Checking if icon.ico exists ==="
         if [ -f "build/icon.ico" ]; then
           echo "✅ icon.ico exists"
@@ -51,8 +59,6 @@ jobs:
     - name: Check build files (Windows)
       if: matrix.os == 'windows-latest'
       run: |
-        echo "=== Checking build files ==="
-        dir build\
         echo "=== Checking if icon.ico exists ==="
         if (Test-Path "build\icon.ico") {
           echo "✅ icon.ico exists"
@@ -68,6 +74,7 @@ jobs:
     - name: Build and Publish for macOS
       if: matrix.os == 'macos-latest'
       run: |
+        echo "=== Building for macOS ==="
         npm run build:mac:ci
       env:
         CSC_IDENTITY_AUTO_DISCOVERY: false
@@ -76,6 +83,7 @@ jobs:
     - name: Build and Publish for Windows
       if: matrix.os == 'windows-latest'
       run: |
+        echo "=== Building for Windows ==="
         npm run build:win:ci
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
