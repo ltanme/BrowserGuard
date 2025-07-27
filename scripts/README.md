@@ -4,8 +4,7 @@
 
 ## 脚本文件
 
-- `release.sh` - macOS/Linux 版本 (Bash)
-- `release.ps1` - Windows 版本 (PowerShell)
+- `version.sh` - macOS/Linux 版本 (Bash)
 
 ## 使用方法
 
@@ -13,10 +12,10 @@
 
 ```bash
 # 发布新版本
-./scripts/release.sh 1.0.5
+./scripts/version.sh 1.0.5
 
 # 显示帮助
-./scripts/release.sh --help
+./scripts/version.sh --help
 ```
 
 ### Windows
@@ -78,7 +77,7 @@
 ## 示例输出
 
 ```bash
-$ ./scripts/release.sh 1.0.5
+$ ./scripts/version.sh 1.0.5
 
 [INFO] 当前版本: 1.0.4
 [INFO] 新版本: 1.0.5
@@ -106,7 +105,7 @@ $ ./scripts/release.sh 1.0.5
 
 1. **权限错误**
    ```bash
-   chmod +x scripts/release.sh
+   chmod +x scripts/version.sh
    ```
 
 2. **版本号格式错误**
