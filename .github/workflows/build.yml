@@ -80,7 +80,8 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: List build artifacts
+    - name: List build artifacts (macOS)
+      if: matrix.os == 'macos-latest'
       run: |
         echo "=== Build artifacts ==="
         ls -la dist/
@@ -88,6 +89,16 @@ jobs:
         pwd
         echo "=== Files in dist ==="
         find dist/ -type f -name "*.dmg" -o -name "*.exe" -o -name "*.zip"
+
+    - name: List build artifacts (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        echo "=== Build artifacts ==="
+        dir dist\
+        echo "=== Current directory ==="
+        pwd
+        echo "=== Files in dist ==="
+        Get-ChildItem -Path dist\ -Recurse -Include "*.dmg", "*.exe", "*.zip"
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
