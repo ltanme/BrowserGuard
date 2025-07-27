@@ -7,7 +7,6 @@ yarn-error.log*
 # Build output
 dist/
 build/*.icns
-build/*.ico
 build/*.iconset
 build/*.dmg
 build/*.exe
