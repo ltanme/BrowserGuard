@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   security-check:
@@ -154,56 +155,4 @@ jobs:
         echo "=== Files in dist ==="
         Get-ChildItem -Path dist\ -Recurse -Include "*.dmg", "*.exe", "*.zip"
         echo "=== Checking file integrity ==="
-        Get-ChildItem -Path dist\ -Recurse -Include "*.exe" | ForEach-Object { Get-FileHash $_.FullName -Algorithm SHA256 }
-
-  create-release:
-    runs-on: ubuntu-latest
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/')
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Create Release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref_name }}
-        release_name: BrowserGuard ${{ github.ref_name }}
-        body: |
-          ## BrowserGuard ${{ github.ref_name }}
-          
-          ### 新版本特性
-          - 跨平台支持 (macOS + Windows)
-          - 自动规则重载
-          - 管理员密码保护
-          - 实时浏览器监控
-          - 支持 Chrome/Safari/Edge/Firefox
-          
-          ### 下载
-          - **macOS**: BrowserGuard-${{ github.ref_name }}-arm64.dmg
-          - **Windows**: BrowserGuard Setup ${{ github.ref_name }}-ia32.exe
-          
-          ### 安装说明
-          1. 下载对应平台的安装包
-          2. 运行安装程序
-          3. 首次启动设置管理员密码（默认：123456）
-          4. 配置规则接口URL
-          5. 设置自动重载间隔
-          
-          ### 系统要求
-          - **macOS**: 10.15+ (Catalina)
-          - **Windows**: Windows 10+
-          - **内存**: 至少 4GB RAM
-          - **存储**: 至少 100MB 可用空间
-          
-          ### 功能特性
-          - 🔒 管理员密码保护
-          - ⏰ 时间段限制
-          - 🌐 多浏览器支持
-          - 📊 实时监控
-          - 🔄 自动规则重载
-          - 📝 详细日志记录
-        draft: false
-        prerelease: false 
+        Get-ChildItem -Path dist\ -Recurse -Include "*.exe" | ForEach-Object { Get-FileHash $_.FullName -Algorithm SHA256 } 
