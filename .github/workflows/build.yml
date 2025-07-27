@@ -36,7 +36,8 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
-    - name: Check version and build files
+    - name: Check version and build files (macOS)
+      if: matrix.os == 'macos-latest'
       run: |
         echo "=== Current Git tag ==="
         echo "GITHUB_REF: $GITHUB_REF"
@@ -45,6 +46,17 @@ jobs:
         node -p "require('./package.json').version"
         echo "=== Checking build files ==="
         ls -la build/
+
+    - name: Check version and build files (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        echo "=== Current Git tag ==="
+        echo "GITHUB_REF: $GITHUB_REF"
+        echo "GITHUB_REF_NAME: $GITHUB_REF_NAME"
+        echo "=== Package.json version ==="
+        node -p "require('./package.json').version"
+        echo "=== Checking build files ==="
+        dir build\
 
     - name: Check build files (macOS)
       if: matrix.os == 'macos-latest'
