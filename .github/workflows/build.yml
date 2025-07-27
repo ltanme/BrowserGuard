@@ -65,7 +65,7 @@ jobs:
         npm run build:main
         npm run build:renderer
 
-    - name: Build for macOS
+    - name: Build and Publish for macOS
       if: matrix.os == 'macos-latest'
       run: |
         npm run build:mac:ci
@@ -73,7 +73,7 @@ jobs:
         CSC_IDENTITY_AUTO_DISCOVERY: false
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Build for Windows
+    - name: Build and Publish for Windows
       if: matrix.os == 'windows-latest'
       run: |
         npm run build:win:ci
@@ -98,98 +98,4 @@ jobs:
         echo "=== Current directory ==="
         pwd
         echo "=== Files in dist ==="
-        Get-ChildItem -Path dist\ -Recurse -Include "*.dmg", "*.exe", "*.zip"
-
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: browser-guard-${{ matrix.os }}
-        path: |
-          dist/*.dmg
-          dist/*.exe
-          dist/*.zip
-        retention-days: 7
-
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Download all artifacts
-      uses: actions/download-artifact@v4
-      with:
-        path: artifacts
-
-    - name: List downloaded artifacts
-      run: |
-        echo "=== Downloaded artifacts ==="
-        find artifacts/ -type f
-
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref_name }}
-        release_name: BrowserGuard ${{ github.ref_name }}
-        body: |
-          ## BrowserGuard ${{ github.ref_name }}
-          
-          ### 新版本特性
-          - 跨平台支持 (macOS + Windows)
-          - 自动规则重载
-          - 管理员密码保护
-          - 实时浏览器监控
-          - 支持 Chrome/Safari/Edge/Firefox
-          
-          ### 下载
-          - **macOS**: BrowserGuard-${{ github.ref_name }}-arm64.dmg
-          - **Windows**: BrowserGuard Setup ${{ github.ref_name }}-ia32.exe
-          
-          ### 安装说明
-          1. 下载对应平台的安装包
-          2. 运行安装程序
-          3. 首次启动设置管理员密码（默认：123456）
-          4. 配置规则接口URL
-          5. 设置自动重载间隔
-          
-          ### 系统要求
-          - **macOS**: 10.15+ (Catalina)
-          - **Windows**: Windows 10+
-          - **内存**: 至少 4GB RAM
-          - **存储**: 至少 100MB 可用空间
-          
-          ### 功能特性
-          - 🔒 管理员密码保护
-          - ⏰ 时间段限制
-          - 🌐 多浏览器支持
-          - 📊 实时监控
-          - 🔄 自动规则重载
-          - 📝 详细日志记录
-        draft: false
-        prerelease: false
-
-    - name: Upload macOS DMG
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./artifacts/browser-guard-macos-latest/BrowserGuard-*.dmg
-        asset_name: BrowserGuard-${{ github.ref_name }}-arm64.dmg
-        asset_content_type: application/octet-stream
-
-    - name: Upload Windows EXE
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./artifacts/browser-guard-windows-latest/BrowserGuard*.exe
-        asset_name: BrowserGuard-Setup-${{ github.ref_name }}-ia32.exe
-        asset_content_type: application/octet-stream 
+        Get-ChildItem -Path dist\ -Recurse -Include "*.dmg", "*.exe", "*.zip" 
