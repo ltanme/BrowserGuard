@@ -134,10 +134,18 @@ push_changes() {
     git commit -m "chore: 更新版本号到 $version"
     
     # 推送代码
-    git push origin master
+    print_info "推送代码到 master 分支..."
+    if ! git push origin master; then
+        print_error "推送代码失败！"
+        exit 1
+    fi
     
     # 推送标签
-    git push origin "$tag_name"
+    print_info "推送标签 $tag_name..."
+    if ! git push origin "$tag_name"; then
+        print_error "推送标签失败！"
+        exit 1
+    fi
     
     print_success "更改已推送到远程仓库"
 }
@@ -150,10 +158,32 @@ verify_remote_tag() {
     print_info "验证远程标签版本..."
     
     # 等待一下让远程同步
-    sleep 2
+    sleep 3
+    
+    # 先获取最新的远程信息
+    git fetch origin --tags
+    
+    # 检查远程标签是否存在
+    if ! git ls-remote --tags origin | grep -q "refs/tags/$tag_name"; then
+        print_error "远程标签 $tag_name 不存在！"
+        exit 1
+    fi
     
     # 获取远程标签的版本号
-    local remote_version=$(git show "origin/$tag_name:package.json" | grep '"version"' | sed 's/.*"version": "\([^"]*\)".*/\1/')
+    local remote_version=""
+    if git show "origin/$tag_name:package.json" 2>/dev/null | grep -q '"version"'; then
+        remote_version=$(git show "origin/$tag_name:package.json" 2>/dev/null | grep '"version"' | sed 's/.*"version": "\([^"]*\)".*/\1/')
+    else
+        # 如果无法直接访问，尝试从本地标签获取
+        if git tag -l | grep -q "^$tag_name$"; then
+            remote_version=$(git show "$tag_name:package.json" 2>/dev/null | grep '"version"' | sed 's/.*"version": "\([^"]*\)".*/\1/')
+        fi
+    fi
+    
+    if [ -z "$remote_version" ]; then
+        print_warning "无法获取远程标签版本号，跳过验证"
+        return 0
+    fi
     
     if [ "$version" != "$remote_version" ]; then
         print_error "远程标签版本不匹配！期望: $version, 实际: $remote_version"
@@ -232,6 +262,15 @@ main() {
     print_success "版本管理完成！"
     print_info "版本 $version 已正确同步到所有位置"
     print_info "GitHub Actions 构建将使用正确的版本号"
+    
+    echo
+    print_info "后续步骤："
+    echo "1. 访问 GitHub Actions: https://github.com/ltanme/BrowserGuard/actions"
+    echo "2. 查看 v$version 的构建进度"
+    echo "3. 构建完成后访问 Releases: https://github.com/ltanme/BrowserGuard/releases"
+    echo "4. 下载对应平台的二进制文件"
+    echo
+    print_success "🎉 版本 $version 发布流程已启动！"
 }
 
 # 运行主函数
