@@ -36,7 +36,8 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
-    - name: Check build files
+    - name: Check build files (macOS)
+      if: matrix.os == 'macos-latest'
       run: |
         echo "=== Checking build files ==="
         ls -la build/
@@ -46,6 +47,18 @@ jobs:
         else
           echo "❌ icon.ico not found"
         fi
+
+    - name: Check build files (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        echo "=== Checking build files ==="
+        dir build\
+        echo "=== Checking if icon.ico exists ==="
+        if (Test-Path "build\icon.ico") {
+          echo "✅ icon.ico exists"
+        } else {
+          echo "❌ icon.ico not found"
+        }
 
     - name: Build application
       run: |
