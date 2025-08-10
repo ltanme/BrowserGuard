@@ -8,10 +8,102 @@ import { setupTray } from './tray';
 import { DebugServer } from './debugServer';
 import { ConfigManager } from './config';
 
+// 配置管理器
+const configManager = new ConfigManager();
+
+// 配置 electron-log 日志轮转
+const logConfig = configManager.getLogConfig();
+log.transports.file.maxSize = logConfig.maxFileSize;
+
+// 自定义日志归档函数 - 添加时间戳到文件名
+if (logConfig.enableRotation) {
+  log.transports.file.archiveLogFn = (file) => {
+    const oldPath = file.toString();
+    const inf = path.parse(oldPath);
+    const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const archivedPath = path.join(inf.dir, `${inf.name}-${timestamp}${inf.ext}`);
+
+    try {
+      // 如果同名归档文件已存在，添加序号
+      let finalPath = archivedPath;
+      let counter = 1;
+      while (fs.existsSync(finalPath)) {
+        finalPath = path.join(inf.dir, `${inf.name}-${timestamp}-${counter}${inf.ext}`);
+        counter++;
+      }
+
+      fs.renameSync(oldPath, finalPath);
+      console.log(`日志文件已归档: ${path.basename(finalPath)}`);
+    } catch (e) {
+      console.error('日志归档失败:', e);
+      // 回退到默认行为
+      try {
+        fs.renameSync(oldPath, path.join(inf.dir, `${inf.name}.old${inf.ext}`));
+      } catch (fallbackError) {
+        console.error('回退归档也失败:', fallbackError);
+        const quarterOfMaxSize = Math.round(log.transports.file.maxSize / 4);
+        // 回退到截断文件的方式
+        try {
+          const filePath = file.toString();
+          const stats = fs.statSync(filePath);
+          if (stats.size > quarterOfMaxSize) {
+            const content = fs.readFileSync(filePath, 'utf8');
+            const truncatedContent = content.slice(-quarterOfMaxSize);
+            fs.writeFileSync(filePath, truncatedContent, 'utf8');
+          }
+        } catch (truncateError) {
+          console.error('文件截断也失败:', truncateError);
+        }
+      }
+    }
+  };
+}
+
+// 自定义日志清理函数 - 根据配置保留日志文件
+function cleanOldLogFiles() {
+  const currentLogConfig = configManager.getLogConfig();
+
+  if (!currentLogConfig.cleanupOnStartup) {
+    console.log('日志清理已禁用，跳过清理');
+    return;
+  }
+
+  try {
+    const logDir = path.dirname(log.transports.file.getFile().path);
+    if (!fs.existsSync(logDir)) return;
+
+    const files = fs.readdirSync(logDir);
+    const logFiles = files.filter(file => file.endsWith('.log'));
+    const retentionTime = Date.now() - (currentLogConfig.retentionDays * 24 * 60 * 60 * 1000);
+    let deletedCount = 0;
+
+    logFiles.forEach(file => {
+      // 跳过当前活动的日志文件
+      if (file === path.basename(log.transports.file.getFile().path)) {
+        return;
+      }
+
+      const filePath = path.join(logDir, file);
+      const stats = fs.statSync(filePath);
+      if (stats.mtime.getTime() < retentionTime) {
+        fs.unlinkSync(filePath);
+        console.log(`已删除过期日志文件: ${file}`);
+        deletedCount++;
+      }
+    });
+
+    if (deletedCount > 0) {
+      console.log(`日志清理完成，删除了 ${deletedCount} 个过期文件（保留${currentLogConfig.retentionDays}天）`);
+    }
+  } catch (error) {
+    console.error('清理日志文件时出错:', error);
+  }
+}
+
 // 检查是否在安装/卸载模式下运行
-const isInstallerMode = process.argv.some(arg => 
-  arg.includes('--install') || 
-  arg.includes('--uninstall') || 
+const isInstallerMode = process.argv.some(arg =>
+  arg.includes('--install') ||
+  arg.includes('--uninstall') ||
   arg.includes('--update') ||
   process.env.ELECTRON_IS_DEV === 'true'
 );
@@ -51,11 +143,10 @@ if (process.platform === 'darwin') {
   getCurrentUrl = async () => null;
 }
 
-// 配置管理器
-const configManager = new ConfigManager();
+// 统一使用 electron-log 的默认路径策略
 const LOG_PATH = process.platform === 'darwin'
-  ? path.join(app.getPath('home'), 'Library/Logs/BrowserGuard/renderer.log')
-  : path.join(app.getPath('appData'), 'BrowserGuard', 'logs', 'renderer.log');
+  ? path.join(app.getPath('home'), 'Library/Logs/BrowserGuard/renderer.log')  // macOS: ~/Library/Logs/
+  : path.join(app.getPath('appData'), 'BrowserGuard', 'logs', 'renderer.log'); // Windows: %APPDATA%/BrowserGuard/logs/
 
 const defaultBlocklist: BlockListResponse = {
   periods: [
@@ -79,7 +170,7 @@ function writeLog(msg: string) {
   fs.mkdirSync(path.dirname(LOG_PATH), { recursive: true });
   fs.appendFileSync(LOG_PATH, `[${new Date().toISOString()}] ${msg}\n`);
   log.info(msg);
-  
+
   // Add log to debug server
   if (debugServer) {
     debugServer.addLog({
@@ -113,7 +204,7 @@ async function fetchBlockList() {
     if (mainWindow) {
       mainWindow.webContents.send('blocklist-updated', blocklist);
     }
-    
+
     // Emit debug event for blocklist update
     if (debugServer) {
       debugServer.updateState({
@@ -129,12 +220,12 @@ async function fetchBlockList() {
           error: null
         }
       });
-      
+
       debugServer.broadcastEvent({
         type: 'blocklist-update',
         timestamp: new Date(),
-        data: { 
-          blocklist, 
+        data: {
+          blocklist,
           periodsCount: blocklist.periods.length,
           source: 'remote-api'
         }
@@ -146,7 +237,7 @@ async function fetchBlockList() {
     // 用默认规则
     blocklist = defaultBlocklist;
     writeLog('Blocklist fetch failed, using defaultBlocklist');
-    
+
     // Emit debug event for blocklist error
     if (debugServer) {
       debugServer.updateState({
@@ -155,11 +246,11 @@ async function fetchBlockList() {
           error: errorMsg
         }
       });
-      
+
       debugServer.broadcastEvent({
         type: 'blocklist-update',
         timestamp: new Date(),
-        data: { 
+        data: {
           error: errorMsg,
           source: 'remote-api'
         }
@@ -172,7 +263,7 @@ function getCurrentActivePeriod() {
   const now = new Date();
   const pad = (n: number) => n.toString().padStart(2, '0');
   const currentTime = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
-  
+
   for (const period of blocklist.periods) {
     if (currentTime >= period.start && currentTime <= period.end) {
       return period;
@@ -199,11 +290,11 @@ async function pollBrowsers() {
       writeLog('--- 开始轮询浏览器状态 ---');
     }
     // 根据平台选择要检测的浏览器
-    const browsers: Array<'chrome' | 'edge' | 'safari' | 'firefox'> = 
-      process.platform === 'darwin' 
+    const browsers: Array<'chrome' | 'edge' | 'safari' | 'firefox'> =
+      process.platform === 'darwin'
         ? ['chrome', 'edge', 'safari', 'firefox']  // macOS 支持所有浏览器
         : ['chrome', 'edge', 'firefox'];           // Windows 不支持 Safari
-    
+
     for (const browser of browsers) {
       if (configManager.getDebug()) {
         writeLog(`[轮询] 检测浏览器: ${browser}`);
@@ -213,7 +304,7 @@ async function pollBrowsers() {
       if (configManager.getDebug()) {
         writeLog(`[轮询] ${browser} 当前URL: ${url ?? '未获取到/未运行'}`);
       }
-      
+
       // Update browser status in debug server
       if (debugServer) {
         debugServer.updateState({
@@ -227,7 +318,7 @@ async function pollBrowsers() {
             }
           }
         });
-        
+
         // Emit URL check event
         debugServer.broadcastEvent({
           type: 'url-check',
@@ -240,10 +331,10 @@ async function pollBrowsers() {
           }
         });
       }
-      
+
       if (url && isDomainBlocked(url)) {
         writeLog(`[检测] 命中拦截规则: ${url}`);
-        
+
         // Emit blocking event
         if (debugServer) {
           debugServer.broadcastEvent({
@@ -258,19 +349,19 @@ async function pollBrowsers() {
             }
           });
         }
-        
+
         if (mainWindow) {
           writeLog(`[弹窗] 通知前端弹窗: ${url}`);
           mainWindow.webContents.send('show-warning', url);
         }
-        
+
         const now = Date.now();
         if (!lastKillTime[browser] || now - lastKillTime[browser] > 30000) { // 30秒冷却
           setTimeout(() => {
             writeLog(`[KILL] 5秒后关闭浏览器进程: ${browser}`);
             killBrowserProcess(browser);
             lastKillTime[browser] = Date.now();
-            
+
             // Emit browser kill event
             if (debugServer) {
               debugServer.broadcastEvent({
@@ -346,12 +437,15 @@ function createWindow() {
 
 app.on('ready', async () => {
   try {
+    // 清理过期日志文件（如果启用）
+    cleanOldLogFiles();
+
     writeLog('App started (from packaged app)');
     checkAccessibility();
     writeLog('After checkAccessibility');
     createWindow();
     writeLog('After createWindow');
-    
+
     // 设置托盘，如果失败则继续
     try {
       tray = setupTray(app, mainWindow, configManager.getConfig().adminPassword, writeLog, createWindow);
@@ -359,7 +453,7 @@ app.on('ready', async () => {
     } catch (trayError) {
       writeLog(`Tray setup failed: ${trayError}, continuing without tray`);
     }
-    
+
     // Initialize debug server
     try {
       debugServer = new DebugServer({
@@ -368,7 +462,7 @@ app.on('ready', async () => {
         enabled: true
       }, writeLog);
       writeLog('After DebugServer creation');
-      
+
       const debugPort = await debugServer.start();
       if (debugPort > 0) {
         writeLog(`Debug server available at http://localhost:${debugPort}`);
@@ -376,7 +470,7 @@ app.on('ready', async () => {
     } catch (error) {
       writeLog(`Failed to start debug server: ${error}, continuing without debug server`);
     }
-    
+
     // 启动核心功能
     fetchBlockList();
     writeLog('After fetchBlockList');
@@ -418,6 +512,17 @@ app.on('will-quit', () => {
 process.on('uncaughtException', (error) => {
   writeLog(`Uncaught Exception: ${error.message}`);
   writeLog(`Stack: ${error.stack}`);
+  
+  // 清理监控器
+  if (process.platform === 'win32') {
+    try {
+      const { cleanup } = require('./getUrlWin');
+      cleanup();
+    } catch (e) {
+      writeLog(`清理监控器失败: ${e}`);
+    }
+  }
+  
   app.quit();
 });
 
@@ -487,12 +592,62 @@ ipcMain.handle('reset-config', async () => {
   configManager.resetToDefault();
   writeLog('Config reset to default');
   return true;
-}); 
+});
 
-ipcMain.handle('get-blocklist', async () => blocklist); 
+ipcMain.handle('get-blocklist', async () => blocklist);
 ipcMain.handle('get-debug', async () => configManager.getDebug());
 ipcMain.handle('update-debug', async (_e, debug: boolean) => {
   configManager.updateDebug(debug);
   writeLog(`Debug模式已${debug ? '开启' : '关闭'}`);
+  return true;
+});
+
+// 日志配置相关的IPC处理器
+ipcMain.handle('get-log-config', async () => {
+  return configManager.getLogConfig();
+});
+
+ipcMain.handle('update-log-max-file-size', async (_e, size: number) => {
+  configManager.updateLogMaxFileSize(size);
+  log.transports.file.maxSize = size; // 立即应用新配置
+  writeLog(`日志文件最大大小已更新为: ${(size / 1024 / 1024).toFixed(1)}MB`);
+  return true;
+});
+
+ipcMain.handle('update-log-retention-days', async (_e, days: number) => {
+  configManager.updateLogRetentionDays(days);
+  writeLog(`日志保留天数已更新为: ${days}天`);
+  return true;
+});
+
+ipcMain.handle('update-log-rotation-enabled', async (_e, enabled: boolean) => {
+  configManager.updateLogRotationEnabled(enabled);
+  writeLog(`日志轮转已${enabled ? '启用' : '禁用'}`);
+  return true;
+});
+
+ipcMain.handle('update-log-cleanup-on-startup', async (_e, enabled: boolean) => {
+  configManager.updateLogCleanupOnStartup(enabled);
+  writeLog(`启动时日志清理已${enabled ? '启用' : '禁用'}`);
+  return true;
+});
+
+ipcMain.handle('manual-log-cleanup', async () => {
+  try {
+    cleanOldLogFiles();
+    writeLog('手动日志清理完成');
+    return { success: true, message: '日志清理完成' };
+  } catch (error) {
+    const errorMsg = `手动日志清理失败: ${error}`;
+    writeLog(errorMsg);
+    return { success: false, message: errorMsg };
+  }
+});
+
+ipcMain.handle('reset-log-config', async () => {
+  configManager.resetLogConfigToDefault();
+  const newLogConfig = configManager.getLogConfig();
+  log.transports.file.maxSize = newLogConfig.maxFileSize; // 应用新配置
+  writeLog('日志配置已重置为默认值');
   return true;
 }); 

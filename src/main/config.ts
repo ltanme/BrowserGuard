@@ -2,6 +2,14 @@ import { app } from 'electron';
 import path from 'path';
 import fs from 'fs';
 
+export interface LogConfig {
+  maxFileSize: number; // 单个日志文件最大大小（字节）
+  retentionDays: number; // 日志保留天数
+  enableRotation: boolean; // 是否启用日志轮转
+  cleanupOnStartup: boolean; // 启动时是否清理过期日志
+}
+
+
 export interface AppConfig {
   adminPassword: string;
   blocklistUrl: string;
@@ -9,14 +17,24 @@ export interface AppConfig {
   lastReloadTime?: string;
   isFirstRun: boolean;
   debug: boolean; // 调试模式，控制日志输出
+  logConfig: LogConfig; // 日志配置
 }
+
+const DEFAULT_LOG_CONFIG: LogConfig = {
+  maxFileSize: 10 * 1024 * 1024, // 10MB
+  retentionDays: 7, // 保留7天
+  enableRotation: true, // 启用日志轮转
+  cleanupOnStartup: true // 启动时清理过期日志
+};
+
 
 const DEFAULT_CONFIG: AppConfig = {
   adminPassword: '123456',
   blocklistUrl: 'http://192.168.100.193/blocklist.json',
   autoReloadInterval: 30, // 30秒
   isFirstRun: true,
-  debug: false // 默认关闭调试模式
+  debug: false, // 默认关闭调试模式
+  logConfig: DEFAULT_LOG_CONFIG
 };
 
 export class ConfigManager {
@@ -141,6 +159,50 @@ export class ConfigManager {
   // 更新debug状态
   updateDebug(debug: boolean): void {
     this.config.debug = debug;
+    this.saveConfig();
+  }
+
+  // 获取日志配置
+  getLogConfig(): LogConfig {
+    return { ...this.config.logConfig };
+  }
+
+  // 更新日志文件最大大小
+  updateLogMaxFileSize(size: number): void {
+    this.config.logConfig.maxFileSize = size;
+    this.saveConfig();
+  }
+
+  // 更新日志保留天数
+  updateLogRetentionDays(days: number): void {
+    this.config.logConfig.retentionDays = days;
+    this.saveConfig();
+  }
+
+  // 更新日志轮转开关
+  updateLogRotationEnabled(enabled: boolean): void {
+    this.config.logConfig.enableRotation = enabled;
+    this.saveConfig();
+  }
+
+  // 更新启动时清理开关
+  updateLogCleanupOnStartup(enabled: boolean): void {
+    this.config.logConfig.cleanupOnStartup = enabled;
+    this.saveConfig();
+  }
+
+  // 更新整个日志配置
+  updateLogConfig(logConfig: Partial<LogConfig>): void {
+    this.config.logConfig = {
+      ...this.config.logConfig,
+      ...logConfig
+    };
+    this.saveConfig();
+  }
+
+  // 重置日志配置为默认值
+  resetLogConfigToDefault(): void {
+    this.config.logConfig = { ...DEFAULT_LOG_CONFIG };
     this.saveConfig();
   }
 } 
